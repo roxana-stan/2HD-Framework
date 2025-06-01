@@ -1,4 +1,4 @@
-# 2HD framework for performance evaluation of task scheduling algorithms in edge-cloud computing environments
+# 2HD Task Scheduling Performance Evaluation Framework for Edge-Cloud Computing
 
 #### 2HD framework support
 
