@@ -1,8 +1,27 @@
 package scheduling_evaluation;
 
+import org.cloudbus.cloudsim.Vm;
+import org.edge.core.edge.MicroELement;
+
 import scheduling_evaluation.Types.ResourceType;
 
 public class ResourceUtils {
+
+	public static boolean isEdgeResource(Vm vm) {
+		return vm instanceof MicroELement;
+	}
+
+	public static boolean isEdgeResource(ResourceType resourceType) {
+		return resourceType == ResourceType.EDGE_RESOURCE_MOBILE_PHONE || resourceType == ResourceType.EDGE_RESOURCE_RASPBERRY_PI;
+	}
+
+	public static boolean isCloudResource(Vm vm) {
+		return !isEdgeResource(vm);
+	}
+
+	public static boolean isCloudResource(ResourceType resourceType) {
+		return resourceType == ResourceType.CLOUD_RESOURCE;
+	}
 
 	/* Virtual machine resource parameters. */
 
@@ -67,7 +86,7 @@ public class ResourceUtils {
 	}
 
 	/* Physical machine parameters */
-	
+
 	public static double getPmMips(ResourceType type) {
 		switch(type) {
 		case CLOUD_RESOURCE:
@@ -79,7 +98,7 @@ public class ResourceUtils {
 		}
 		return 0.0;
 	}
-	
+
 	public static int getPmPesNumber(ResourceType type) {
 		switch(type) {
 		case CLOUD_RESOURCE:
@@ -171,5 +190,5 @@ public class ResourceUtils {
 			return 0;
 		}
 	}
-	
+
 }

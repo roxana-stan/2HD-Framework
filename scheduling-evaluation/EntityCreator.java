@@ -61,10 +61,10 @@ public class EntityCreator {
 	 * Creates a list of tasks considering the distribution of task types.
 	 * @param userId User or broker ID.
 	 * @param taskId ID of the first task to be created.
-	 * @param arrivalTimes Array of tasks' arrival times.
+	 * @param taskArrivalTimes Array of tasks' arrival times.
 	 * @return The created task list.
 	 */
-	public static List<Task> createTasks(int userId, int taskId, double[] arrivalTimes) {
+	public static List<Task> createTasks(int userId, int taskId, double[] taskArrivalTimes) {
 		LinkedList<Task> taskList = new LinkedList<Task>();
 
 		// Compute the distribution of the tasks.
@@ -80,12 +80,49 @@ public class EntityCreator {
 			int taskCount = entry.getValue();
 
 			for (int idx = 0; idx < taskCount; ++idx) {
-				Task task = createTask(userId, taskId++, taskType, arrivalTimes[taskIdx++]);
+				Task task = createTask(userId, taskId++, taskType, taskArrivalTimes[taskIdx++]);
 				taskList.add(task);
 			}
 		}
 
 		// Sort the tasks based on their arrival times.
+		sortTasksByArrivalTime(taskList);
+
+		return taskList;
+	}
+
+	/**
+	 * Creates a list of tasks of generic type.
+	 * @param userId User or broker ID.
+	 * @param taskId ID of the first task to be created.
+	 * @param taskCount Number of tasks to be created.
+	 * @param taskLengths Array of tasks' lengths.
+	 * @param taskFileSizes Array of tasks' input file sizes.
+	 * @param taskOutputSizes Array of tasks' output file sizes.
+	 * @param taskArrivalTimes Array of tasks' arrival times.
+	 * @return The created task list.
+	 */
+	public static List<Task> createGenericTasks(int userId, int taskId, int taskCount, double[] taskLengths,
+												double[] taskFileSizes, double[] taskOutputSizes, double[] taskArrivalTimes) {
+		LinkedList<Task> taskList = new LinkedList<Task>();
+
+		// Create the tasks.
+		for (int taskIdx = 0; taskIdx < taskCount; ++taskIdx) {
+			Task task = createGenericTask(userId, taskId++, taskLengths[taskIdx], taskFileSizes[taskIdx], taskOutputSizes[taskIdx], taskArrivalTimes[taskIdx]);
+			taskList.add(task);
+		}
+
+		// Sort the tasks based on their arrival times.
+		sortTasksByArrivalTime(taskList);
+
+		return taskList;
+	}
+
+	/**
+	 * Sorts the tasks in increasing order of their arrival times.
+	 * @param taskList List of tasks to be sorted.
+	 */
+	private static void sortTasksByArrivalTime(LinkedList<Task> taskList) {
 		taskList.sort(new Comparator<Task>() {
 			@Override
 			public int compare(Task task1, Task task2) {
@@ -97,27 +134,49 @@ public class EntityCreator {
 		for (Task task : taskList) {
 			Log.printLine("Task " + task.getCloudletId() + ", type " + task.getType() +  " - Arrival time: " + task.getArrivalTime());
 		}
-
-		return taskList;
 	}
 
 	/**
-	 * Creates a task.
+	 * Creates a task of the specified type.
 	 * @param userId User or broker ID.
 	 * @param taskId ID of the task to be created.
-	 * @param type Type of task to be created.
-	 * @param arrivalTime Arrival time of the task.
+	 * @param taskType Type of the task to be created.
+	 * @param taskArrivalTime Arrival time of the task.
 	 * @return The created task.
 	 */
-	public static Task createTask(int userId, int taskId, TaskType type, double arrivalTime) {
+	public static Task createTask(int userId, int taskId, TaskType taskType, double taskArrivalTime) {
 		UtilizationModel utilizationModel = new UtilizationModelFull();
 
-		Task task = new Task(taskId, TaskUtils.getTaskLength(type), Constants.TASK_PES_NUMBER,
-							TaskUtils.getTaskFileSize(type), TaskUtils.getTaskOutputSize(type),
+		Task task = new Task(taskId, TaskUtils.getTaskLength(taskType), Constants.TASK_PES_NUMBER,
+							TaskUtils.getTaskFileSize(taskType), TaskUtils.getTaskOutputSize(taskType),
 							utilizationModel, utilizationModel, utilizationModel);
 		task.setUserId(userId);
-		task.setType(type);
-		task.setArrivalTime(arrivalTime);
+		task.setType(taskType);
+		task.setArrivalTime(taskArrivalTime);
+
+		return task;
+	}
+
+	/**
+	 * Creates a task of generic type.
+	 * @param userId User or broker ID.
+	 * @param taskId ID of the task to be created.
+	 * @param taskLength Number of instructions of the task.
+	 * @param taskFileSize File size of the task before execution.
+	 * @param taskOutputSize File size of the task after execution.
+	 * @param taskArrivalTime Arrival time of the task.
+	 * @return The created task.
+	 */
+	public static Task createGenericTask(int userId, int taskId, double taskLength,
+										double taskFileSize, double taskOutputSize, double taskArrivalTime) {
+		UtilizationModel utilizationModel = new UtilizationModelFull();
+
+		Task task = new Task(taskId, taskLength, Constants.TASK_PES_NUMBER,
+							taskFileSize, taskOutputSize,
+							utilizationModel, utilizationModel, utilizationModel);
+		task.setUserId(userId);
+		task.setType(TaskType.GENERIC);
+		task.setArrivalTime(taskArrivalTime);
 
 		return task;
 	}
@@ -207,11 +266,11 @@ public class EntityCreator {
 		Datacenter datacenter = null;
 		try {
 			LinkedList<Storage> storageList = new LinkedList<Storage>();
-            datacenter = new Datacenter(name, characteristics, new VmAllocationPolicySimple(pmList), storageList, 0);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+			datacenter = new Datacenter(name, characteristics, new VmAllocationPolicySimple(pmList), storageList, 0);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
 		return datacenter;
 	}
 

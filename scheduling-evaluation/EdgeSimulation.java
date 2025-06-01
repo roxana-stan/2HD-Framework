@@ -8,6 +8,7 @@ import java.util.stream.Stream;
 import org.cloudbus.cloudsim.Cloudlet;
 import org.cloudbus.cloudsim.Datacenter;
 import org.cloudbus.cloudsim.DatacenterBroker;
+import org.cloudbus.cloudsim.Log;
 import org.cloudbus.cloudsim.Vm;
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.edge.core.edge.MicroELement;
@@ -19,10 +20,10 @@ import scheduling_evaluation.Types.ResourceType;
 public class EdgeSimulation {
 
 	public static void createEdgeCloudSimulation(BrokerType brokerType) {
-		// Initialize the CloudSim library
+		// Initialize the CloudSim library.
 		CloudSim.init(Constants.USER_COUNT, Calendar.getInstance(), false);
 
-		// Create edge and cloud datacenters
+		// Create edge and cloud datacenters.
 		int datacenterIdx = 1;
 
 		String edgeDatacenterNameM = EntityCreator.getDatacenterName("" + datacenterIdx++, DatacenterType.EDGE_DATACENTER);
@@ -36,18 +37,18 @@ public class EdgeSimulation {
 		String cloudDatacenterName = EntityCreator.getDatacenterName("" + datacenterIdx++, DatacenterType.CLOUD_DATACENTER);
 		Datacenter cloudDatacenter = EntityCreator.createCloudDatacenter(cloudDatacenterName, Constants.CLOUD_RESOURCE_COUNT);
 
-		// Create broker
+		// Create broker.
 		int brokerIdx = 1;
 		DatacenterBroker broker = EntityCreator.createBroker("" + brokerIdx, brokerType);
 		int brokerId = broker.getId();
 
-		// Create tasks and submit them to broker
+		// Create tasks and submit them to broker.
 		int taskFirstId = 1;
 		double[] taskArrivalTimes = SimulationUtils.loadTaskArrivalTimes(Constants.TASK_COUNT);
 		List<Task> tasks = EntityCreator.createTasks(brokerId, taskFirstId, taskArrivalTimes);
 		broker.submitCloudletList(tasks);
 
-		// Create edge and cloud resources and submit them to broker
+		// Create edge and cloud resources and submit them to broker.
 		int resourceFirstId = 1;
 		List<MicroELement> edgeResourcesM = EdgeEntityCreator.createEdgeResources(brokerId, Constants.SMARTPHONE_RESOURCE_COUNT, resourceFirstId,
 																				ResourceType.EDGE_RESOURCE_MOBILE_PHONE);
@@ -61,34 +62,35 @@ public class EdgeSimulation {
 											.collect(Collectors.toList());
 		broker.submitVmList(resources);
 
-		// Start the simulation
+		// Start the simulation.
 		CloudSim.startSimulation();
 
-		// Stop the simulation
+		// Stop the simulation.
 		CloudSim.stopSimulation();
 
-		// Print results when simulation is over
+		// Print results when the simulation is over.
 		List<Cloudlet> executedTasks = broker.getCloudletReceivedList();
 		SimulationUtils.printTasks(executedTasks);
 
 		List<Cloudlet> notExecutedTasks = broker.getCloudletList();
+		SimulationUtils.printTasks(notExecutedTasks);
 		if (!notExecutedTasks.isEmpty()) {
-			SimulationUtils.printTasks(notExecutedTasks);
+			Log.printLine("Broker " + brokerType + " failed to schedule " + notExecutedTasks.size() + " tasks!");
 		}
 
-		// Collect and print evaluation metrics
+		// Collect and print evaluation metrics.
 		SchedulingMetrics.collectMetrics(executedTasks);
 
-		// Datacenter resource utilization
+		// Datacenter resource utilization.
 		SchedulingMetrics.computeResourceUtilization(executedTasks, edgeDatacenterM);
 		SchedulingMetrics.computeResourceUtilization(executedTasks, edgeDatacenterR);
 		SchedulingMetrics.computeResourceUtilization(executedTasks, cloudDatacenter);
 
-		// Energy consumption for edge devices
+		// Energy consumption for edge devices.
 		SimulationUtils.printEdgeDevices(edgeDatacenterM);
 		SimulationUtils.printEdgeDevices(edgeDatacenterR);
 
-		// Successfully executed and failed tasks
+		// Successfully executed and failed tasks.
 		SchedulingMetrics.printTaskFailureStatistics(executedTasks, notExecutedTasks);
 	}
 

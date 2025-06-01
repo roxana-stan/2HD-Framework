@@ -15,7 +15,7 @@ public class Task extends Cloudlet {
 	private double arrivalTime = 0.0;
 	private TaskType type;
 	private TaskExecutionResourceStatus resourceStatus;
-	private double totalExecutionTime = -1.0; 
+	private double totalExecutionTime = -1.0;
 
 	public Task(int cloudletId, double cloudletLength, int pesNumber, double cloudletFileSize, double cloudletOutputSize,
 			UtilizationModel utilizationModelCpu, UtilizationModel utilizationModelRam, UtilizationModel utilizationModelBw) {

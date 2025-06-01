@@ -26,4 +26,5 @@ public class Simulation {
 		Log.printLine(enableEdgeCloud ? "EDGE-CLOUD simulation done" : "CLOUD-only simulation done");
 		Log.printLine(brokerType);
 	}
+
 }

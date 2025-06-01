@@ -128,7 +128,7 @@ public class SchedulingMetrics {
 	}
 
 	/**
-	 * Computes mean turnaround time/ time in system across tasks.
+	 * Computes mean turnaround time / time in system across tasks.
 	 */
 	public static double computeAvgTurnaroundTime(List<Cloudlet> cloudletList) {
 		double turnaroundTimeSum = 0.0;
@@ -144,7 +144,7 @@ public class SchedulingMetrics {
 	}
 
 	/**
-	 * Computes mean waiting time/ queuing time across tasks.
+	 * Computes mean waiting time / queuing time across tasks.
 	 */
 	public static double computeAvgWaitingTime(List<Cloudlet> cloudletList) {
 		double waitingTimeSum = 0.0;

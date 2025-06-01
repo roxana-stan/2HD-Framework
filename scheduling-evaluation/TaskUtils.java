@@ -17,10 +17,11 @@ public class TaskUtils {
 	/* ========== Task's expected execution times on a VM resource ========== */
 
 	public static double getTotalExecutionTime(Cloudlet cloudlet, Vm vm) {
-		return getCpuExecutionTime(cloudlet, vm) + getTransferTime(cloudlet, vm);
+		return getProcessingTime(cloudlet, vm) + getTransferTime(cloudlet, vm);
 	}
 
-	public static double getCpuExecutionTime(Cloudlet cloudlet, Vm vm) {
+	public static double getProcessingTime(Cloudlet cloudlet, Vm vm) {
+		// Computation (CPU execution) time.
 		return cloudlet.getCloudletLength() / vm.getMips();
 	}
 
@@ -46,7 +47,7 @@ public class TaskUtils {
 		Task task = (Task) cloudlet;
 		Log.printLine("Task " + task.getCloudletId() + ", type " + task.getType() + ", VM #" + vm.getId()
 					+ " - Total execution time: " + getTotalExecutionTime(task, vm)
-					+ " = Processing time: " + getCpuExecutionTime(task, vm)
+					+ " = Processing time: " + getProcessingTime(task, vm)
 					+ " + Transfer time: " + getTransferTime(task, vm));
 	}
 
@@ -62,27 +63,6 @@ public class TaskUtils {
 		}
 
 		cloudlet.setCloudletLength((long) cloudletTotalLength);
-	}
-
-	/* ========== Task's energy consumption on a VM resource ========== */
-
-	public static double getEnergyConsumption(Cloudlet cloudlet, Vm vm) {
-		ResourceType resourceType = SimulationUtils.getResourceType(vm);
-		if (resourceType == ResourceType.CLOUD_RESOURCE) {
-			return 0.0;
-		}
-
-		double processingTime = getCpuExecutionTime(cloudlet, vm);
-		double transferTime = getTransferTime(cloudlet, vm);
-
-		double consumption = processingTime * 1.0;
-		if (resourceType == ResourceType.EDGE_RESOURCE_MOBILE_PHONE) {
-			consumption += transferTime * Constants.SMARTPHONE_PM_BATTERY_DRAINAGE_RATE;
-		} else if (resourceType == ResourceType.EDGE_RESOURCE_RASPBERRY_PI) {
-			consumption += transferTime * Constants.RASPBERRY_PI_PM_BATTERY_DRAINAGE_RATE;
-		}
-
-		return consumption;
 	}
 
 	/* ========== Task parameters ========== */
@@ -159,7 +139,7 @@ public class TaskUtils {
 	public static Map<TaskType, Integer> getTaskDistribution() {
 		Map<TaskType, Integer> taskDistribution = new LinkedHashMap<>();
 		
-		// Compute number of read and write tasks
+		// Compute number of read and write tasks.
 		int t = Constants.TASK_COUNT;
 		int r = (int) (Constants.F * t);
 		int w = (int) ((1 - Constants.F) * t);
@@ -169,7 +149,7 @@ public class TaskUtils {
 			return null;
 		}
 
-		// Compute distribution of read tasks
+		// Compute distribution of read tasks.
 		int r1 = (int) (Constants.F_RT1 * r);
 		int r2 = (int) (Constants.F_RT2 * r);
 		int r3 = (int) (Constants.F_RT3 * r);
@@ -184,7 +164,7 @@ public class TaskUtils {
 		taskDistribution.put(TaskType.RT3, r3);
 		taskDistribution.put(TaskType.RT4, r4);
 		
-		// Compute distribution of write tasks
+		// Compute distribution of write tasks.
 		int w1 = (int) (Constants.F_WT1 * w);
 		int w2 = (int) (Constants.F_WT2 * w);
 		int w3 = (int) (Constants.F_WT3 * w);
@@ -202,4 +182,13 @@ public class TaskUtils {
 		return taskDistribution;
 	}
 
+	public static boolean canExecuteTaskOnResourceWithLimitedMemoryCapacity(double taskDataSize, ResourceType resourceType) {
+		// A cloud resource can always execute the task.
+		if (resourceType == ResourceType.CLOUD_RESOURCE) {
+			return true;
+		}
+
+		// Check if the edge resource has enough memory to execute the task.
+		return taskDataSize <= ResourceUtils.getVmRam(resourceType);
+	}
 }

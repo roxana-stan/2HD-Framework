@@ -4,11 +4,34 @@ public class Constants {
 
 	public static final int USER_COUNT					= 1;
 
+	public static final String FILE_EXTENSION_CSV		= ".csv";
+	public static final String FILE_EXTENSION_JSON		= ".json";
+	public static final String FILE_EXTENSION_TXT		= ".txt";
+
+	/* Result codes */
+	public static final double INVALID_RESULT_DOUBLE	= -1.0;
+	public static final int INVALID_RESULT_INT			= -1;
+
+	/* ------------------- Resource parameters ------------------- */
+	public static final double DEFAULT_RESOURCE_AVAILABILITY_TIME	= 0.0;
+	public static final double RESOURCE_AVAILABILITY_RATE			= 0.03;		// 3 resources in 100 seconds
+	public static final String RESOURCE_AVAILABILITY_TIMES_FILENAME	= "data/times/resource_availability_times.txt";
+
 	/* Resource count */
 	// Assumption: number of resources = number of physical machines (in 1 datacenter)
-	public static final int SMARTPHONE_RESOURCE_COUNT	= 10;
-	public static final int RASPBERRY_PI_RESOURCE_COUNT	= 5;
-	public static final int CLOUD_RESOURCE_COUNT		= 5;
+	public static final int RESOURCE_TYPE_COUNT									= 3;
+	public static final int SMARTPHONE_RESOURCE_COUNT							= 15;
+	public static final int SMARTPHONE_RESOURCE_COUNT_DEFAULT_AVAILABILITY		= 5;
+	public static final int RASPBERRY_PI_RESOURCE_COUNT							= 15;
+	public static final int RASPBERRY_PI_RESOURCE_COUNT_DEFAULT_AVAILABILITY	= 5;
+	public static final int CLOUD_RESOURCE_COUNT								= 15;
+	public static final int CLOUD_RESOURCE_COUNT_DEFAULT_AVAILABILITY			= 5;
+	public static final int RESOURCE_COUNT										= SMARTPHONE_RESOURCE_COUNT
+																					+ RASPBERRY_PI_RESOURCE_COUNT
+																					+ CLOUD_RESOURCE_COUNT;
+	public static final int RESOURCE_COUNT_DEFAULT_AVAILABILITY					= SMARTPHONE_RESOURCE_COUNT_DEFAULT_AVAILABILITY
+																					+ RASPBERRY_PI_RESOURCE_COUNT_DEFAULT_AVAILABILITY
+																					+ CLOUD_RESOURCE_COUNT_DEFAULT_AVAILABILITY;
 
 	/* Task count */
 	public static final int TASK_COUNT					= 2000;			// Number of tasks/ cloudlets
@@ -40,7 +63,7 @@ public class Constants {
 	public static final long RASPBERRY_PI_PM_STORAGE					= 100000;	// Storage <MB>
 	public static final int RASPBERRY_PI_PM_IOTDEVICE_CAPACITY			= 1000;
 	public static final double RASPBERRY_PI_PM_BATTERY_MAX_CAPACITY		= 10800;
-	public static final double RASPBERRY_PI_PM_BATTERY_DRAINAGE_RATE	= 0.6;		// Transfer rate: 3/5 (3h processing or 5h transfer) 
+	public static final double RASPBERRY_PI_PM_BATTERY_DRAINAGE_RATE	= 0.6;		// Transfer rate: 3/5 (3h processing or 5h transfer)
 	public static final double RASPBERRY_PI_PM_BATTERY_CURRENT_CAPACITY	= 10800;
 
 	/* Smartphone edge device parameters */
@@ -51,7 +74,7 @@ public class Constants {
 	public static final long SMARTPHONE_PM_STORAGE						= 100000;	// Storage <MB>
 	public static final int SMARTPHONE_PM_IOTDEVICE_CAPACITY			= 1000;
 	public static final double SMARTPHONE_PM_BATTERY_MAX_CAPACITY		= 18000;
-	public static final double SMARTPHONE_PM_BATTERY_DRAINAGE_RATE		= 0.625;	// Transfer rate: 5/8 (5h processing or 8h transfer) 
+	public static final double SMARTPHONE_PM_BATTERY_DRAINAGE_RATE		= 0.625;	// Transfer rate: 5/8 (5h processing or 8h transfer)
 	public static final double SMARTPHONE_PM_BATTERY_CURRENT_CAPACITY	= 18000;
 
 	/* Cloud virtual machine parameters (equal to cloud physical machine parameters) */
@@ -80,9 +103,16 @@ public class Constants {
 	public static final String OS						= "Linux";		// Operating System
 	public static final String VMM						= "Xen";		// Virtual Machine Monitor
 
+	/* Resources transfer rates */
+	public static final double CLOUD_TO_CLOUD_TRANSFER_RATE				= 1.0 * CLOUD_VM_BANDWIDTH;
+	public static final double CLOUD_TO_EDGE_TRANSFER_RATE				= 0.2 * CLOUD_VM_BANDWIDTH;
+	public static final double EDGE_TO_CLOUD_TRANSFER_RATE				= 0.15 * CLOUD_VM_BANDWIDTH;
+	public static final double EDGE_TO_EDGE_TRANSFER_RATE				= 0.5 * CLOUD_VM_BANDWIDTH;
+
 	/* ------------------- Task parameters ------------------- */
-	public static final double ARRIVAL_RATE				= 0.8;
-	public static final int TASK_PES_NUMBER				= 1;			// Number of CPUs required to execute the task
+	public static final double DEFAULT_TASK_ARRIVAL_TIME	= 1.0;
+	public static final double TASK_ARRIVAL_RATE			= 0.8;
+	public static final int TASK_PES_NUMBER					= 1;		// Number of CPUs required to execute the task
 
 	/* Read tasks */
 	public static final double READ_TASK1_LENGTH		= 2000000;		// Task length <MI>
@@ -117,5 +147,9 @@ public class Constants {
 	public static final double WRITE_TASK4_LENGTH		= 200000;
 	public static final double WRITE_TASK4_FILESIZE		= 0;
 	public static final double WRITE_TASK4_OUTPUTSIZE	= 200;															// 0.2 GB
+
+	/* ------------------- Task subgraph parameters ------------------- */
+	public static final double TASK_SUBGRAPH_ARRIVAL_RATE			= 0.04;		// 4 task subgraphs in 100 seconds
+	public static final String TASK_SUBGRAPH_ARRIVAL_TIMES_FILENAME	= "data/times/task_subgraph_arrival_times.txt";
 
 }

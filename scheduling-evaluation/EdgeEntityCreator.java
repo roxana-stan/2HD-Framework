@@ -53,7 +53,7 @@ public class EdgeEntityCreator {
 			MicroELement mel = new MicroELement(resId++, userId,
 												ResourceUtils.getVmMips(type), ResourceUtils.getVmPesNumber(type),
 												ResourceUtils.getVmRam(type), ResourceUtils.getVmBandwidth(type),
-												ResourceUtils.getVmStorage(type), Constants.VMM, new CloudletSchedulerSpaceShared());		
+												ResourceUtils.getVmStorage(type), Constants.VMM, new CloudletSchedulerSpaceShared());
 
 			EdgeType edgeType = null;
 			if (type == ResourceType.EDGE_RESOURCE_RASPBERRY_PI) {
@@ -134,11 +134,11 @@ public class EdgeEntityCreator {
 		EdgeDataCenter datacenter = null;
 		try {
 			LinkedList<Storage> storageList = new LinkedList<Storage>();
-            datacenter = new EdgeDataCenter(name, characteristics, new VmAllocationPolicySimple(pmList), storageList, 0);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+			datacenter = new EdgeDataCenter(name, characteristics, new VmAllocationPolicySimple(pmList), storageList, 0);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
 		return datacenter;
 	}
 

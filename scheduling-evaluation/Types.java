@@ -2,6 +2,11 @@ package scheduling_evaluation;
 
 public class Types {
 
+	public enum SchedulingMode {
+		STATIC,
+		DYNAMIC;
+	}
+
 	public enum SimulationType {
 		CLOUD_ONLY,
 		EDGE_CLOUD;
@@ -13,11 +18,11 @@ public class Types {
 	}
 
 	public enum ResourceType {
-		CLOUD_RESOURCE,
+		EDGE_RESOURCE_MOBILE_PHONE,
 		EDGE_RESOURCE_RASPBERRY_PI,
-		EDGE_RESOURCE_MOBILE_PHONE;
+		CLOUD_RESOURCE;
 	}
-	
+
 	public enum TaskType {
 		RT1,
 		RT2,
@@ -26,7 +31,15 @@ public class Types {
 		WT1,
 		WT2,
 		WT3,
-		WT4;
+		WT4,
+		GENERIC;
+	}
+
+	public enum TaskExecutionResourceStatus {
+		SUCCESS,
+		FAILURE_EDGE_DRAINED_BATTERY,
+		FAILURE_EDGE_LIMITED_MEMORY,
+		FAILURE_UNKNOWN;
 	}
 
 	public enum BrokerType {
@@ -38,11 +51,16 @@ public class Types {
 		EDGE_CLOUD_MAX_MIN_BROKER;
 	}
 
-	public enum TaskExecutionResourceStatus {
-		SUCCESS,
-		FAILURE_EDGE_DRAINED_BATTERY,
-		FAILURE_EDGE_LIMITED_MEMORY,
-		FAILURE_UNKNOWN;
+	public enum DagBrokerType {
+		EDGE_CLOUD_HEFT_BROKER,
+		EDGE_CLOUD_RAND_HEFT_BROKER,
+		EDGE_CLOUD_UTILITY_BROKER,
+		EDGE_CLOUD_RAND_UTILITY_BROKER;
+	}
+
+	public enum WorkflowType {
+		EPIGENOMICS,
+		MONTAGE;
 	}
 
 	public static String datacenterTypeString(DatacenterType type) {
@@ -58,7 +76,7 @@ public class Types {
 		}
 		}
 	}
-	
+
 	public static String brokerTypeString(BrokerType type) {
 		switch (type) {
 		case CLOUD_ONLY_DEFAULT_BROKER: {
@@ -78,6 +96,24 @@ public class Types {
 		}
 		case EDGE_CLOUD_MAX_MIN_BROKER: {
 			return "MaxMin-EdgeCloud-Broker-";
+		}
+		}
+		return "";
+	}
+
+	public static String dagBrokerTypeString(DagBrokerType type) {
+		switch (type) {
+		case EDGE_CLOUD_HEFT_BROKER: {
+			return "HEFT-EdgeCloud-Broker-";
+		}
+		case EDGE_CLOUD_RAND_HEFT_BROKER: {
+			return "RandHEFT-EdgeCloud-Broker-";
+		}
+		case EDGE_CLOUD_UTILITY_BROKER: {
+			return "Utility-EdgeCloud-Broker-";
+		}
+		case EDGE_CLOUD_RAND_UTILITY_BROKER: {
+			return "RandUtility-EdgeCloud-Broker-";
 		}
 		}
 		return "";
