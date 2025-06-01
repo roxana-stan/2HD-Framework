@@ -13,13 +13,13 @@ import org.cloudbus.cloudsim.core.CloudSimTags;
 import org.cloudbus.cloudsim.core.SimEvent;
 import org.cloudbus.cloudsim.lists.VmList;
 import org.edge.core.edge.EdgeDevice;
-import org.edge.core.edge.MicroELement;
 
+import scheduling_evaluation.Constants;
 import scheduling_evaluation.SimulationUtils;
 import scheduling_evaluation.Task;
 import scheduling_evaluation.TaskUtils;
+import scheduling_evaluation.Types.ResourceType;
 import scheduling_evaluation.Types.TaskExecutionResourceStatus;
-import scheduling_evaluation.Types.TaskType;
 
 public class DefaultEdgeCloudDatacenterBroker extends DatacenterBroker {
 
@@ -40,14 +40,15 @@ public class DefaultEdgeCloudDatacenterBroker extends DatacenterBroker {
 		getCloudletReceivedList().add(cloudlet);
 		Log.printLine(CloudSim.clock() + ": " + getName() + ": Cloudlet " + cloudlet.getCloudletId() + " received");
 		cloudletsSubmitted--;
-		if (getCloudletList().size() == 0 && cloudletsSubmitted == 0) { // all cloudlets executed
-			Log.printLine(CloudSim.clock() + ": " + getName() + ": All Cloudlets executed. Finishing...");
+		if (getCloudletList().size() == 0 && cloudletsSubmitted == 0) {
+			// All cloudlets executed.
+			Log.printLine(CloudSim.clock() + ": " + getName() + ": All cloudlets executed. Finishing...");
 			clearDatacenters();
 			finishExecution();
-		} else { // some cloudlets haven't finished yet
+		} else {
+			// Some cloudlets haven't finished yet.
 			if (getCloudletList().size() > 0 && cloudletsSubmitted == 0) {
-				// all the cloudlets sent finished. It means that some bount
-				// cloudlet is waiting its VM be created
+				// All cloudlets sent finished. Some bound cloudlet is waiting for its VM to be created.
 				clearDatacenters();
 				/*
 				// Do not try to recreate VMs.
@@ -66,7 +67,7 @@ public class DefaultEdgeCloudDatacenterBroker extends DatacenterBroker {
 	 */
 	@Override
 	protected void createVmsInDatacenter(int datacenterId) {
-		// send as much vms as possible for this datacenter before trying the next one
+		// Send as many VMs as possible for this datacenter before trying the next one.
 		int requestedVms = 0;
 		String datacenterName = CloudSim.getEntityName(datacenterId);
 		Datacenter datacenter = (Datacenter) CloudSim.getEntity(datacenterId);
@@ -79,8 +80,8 @@ public class DefaultEdgeCloudDatacenterBroker extends DatacenterBroker {
 					continue;
 				}
 
-				Log.printLine(CloudSim.clock() + ": " + getName() + ": Trying to Create VM #" + vm.getId()
-						+ " in " + datacenterName);
+				Log.printLine(CloudSim.clock() + ": " + getName()
+						+ ": Trying to create VM #" + vm.getId() + " in " + datacenterName);
 				sendNow(datacenterId, CloudSimTags.VM_CREATE_ACK, vm);
 				requestedVms++;
 			}
@@ -103,14 +104,16 @@ public class DefaultEdgeCloudDatacenterBroker extends DatacenterBroker {
 		int vmIndex = 0;
 		for (Cloudlet cloudlet : getCloudletList()) {
 			Vm vm;
-			// if user didn't bind this cloudlet and it has not been executed yet
+			// If user didn't bind this cloudlet and it has not been executed yet.
 			if (cloudlet.getVmId() == -1) {
 				vm = getVmsCreatedList().get(vmIndex);
-			} else { // submit to the specific vm
+			} else {
+				// Submit the cloudlet to the specific VM.
 				vm = VmList.getById(getVmsCreatedList(), cloudlet.getVmId());
-				if (vm == null) { // vm was not created
-					Log.printLine(CloudSim.clock() + ": " + getName() + ": Postponing execution of cloudlet "
-							+ cloudlet.getCloudletId() + ": bount VM not available");
+				if (vm == null) {
+					// VM was not created.
+					Log.printLine(CloudSim.clock() + ": " + getName()
+							+ ": Postponing execution of cloudlet " + cloudlet.getCloudletId() + " - VM not available");
 					continue;
 				}
 			}
@@ -120,7 +123,7 @@ public class DefaultEdgeCloudDatacenterBroker extends DatacenterBroker {
 			TaskUtils.printExecutionTimes(cloudlet, vm);
 
 			Task task = (Task) cloudlet;
-			TaskExecutionResourceStatus resourceStatus = canExecuteTaskOnResource(cloudlet, vm);
+			TaskExecutionResourceStatus resourceStatus = canExecuteTaskOnResource(cloudlet, TaskUtils.getTaskFileSize(task.getType()), vm);
 			task.setResourceStatus(resourceStatus);
 
 			if (resourceStatus != TaskExecutionResourceStatus.SUCCESS) {
@@ -143,7 +146,7 @@ public class DefaultEdgeCloudDatacenterBroker extends DatacenterBroker {
 			getCloudletSubmittedList().add(cloudlet);
 		}
 
-		// remove submitted cloudlets from waiting list
+		// Remove submitted cloudlets from the waiting list.
 		for (Cloudlet cloudlet : getCloudletSubmittedList()) {
 			getCloudletList().remove(cloudlet);
 		}
@@ -168,8 +171,29 @@ public class DefaultEdgeCloudDatacenterBroker extends DatacenterBroker {
 		getVmsCreatedList().clear();
 	}
 
+	protected double getEdgeDeviceBatteryConsumption(Cloudlet cloudlet, Vm vm) {
+		ResourceType resourceType = SimulationUtils.getResourceType(vm);
+		if (resourceType == ResourceType.CLOUD_RESOURCE) {
+			// Cloud resource, not battery powered.
+			return 0.0;
+		}
+
+		double processingTime = TaskUtils.getProcessingTime(cloudlet, vm);
+		double transferTime = TaskUtils.getTransferTime(cloudlet, vm);
+
+		double consumption = processingTime * 1.0;
+		if (resourceType == ResourceType.EDGE_RESOURCE_MOBILE_PHONE) {
+			consumption += transferTime * Constants.SMARTPHONE_PM_BATTERY_DRAINAGE_RATE;
+		} else if (resourceType == ResourceType.EDGE_RESOURCE_RASPBERRY_PI) {
+			consumption += transferTime * Constants.RASPBERRY_PI_PM_BATTERY_DRAINAGE_RATE;
+		}
+
+		return consumption;
+	}
+
 	protected void updateEdgeDeviceBattery(Cloudlet cloudlet, Vm vm) {
-		if (!(vm instanceof MicroELement)) {
+		ResourceType resourceType = SimulationUtils.getResourceType(vm);
+		if (resourceType == ResourceType.CLOUD_RESOURCE) {
 			// Cloud resource, not battery powered.
 			return;
 		}
@@ -189,19 +213,24 @@ public class DefaultEdgeCloudDatacenterBroker extends DatacenterBroker {
 				return;
 			}
 
-			double batteryConsumption = TaskUtils.getEnergyConsumption(cloudlet, vm);
-			edgeDevice.updateBatteryCurrentCapacity(batteryConsumption);
+			double batteryConsumption = getEdgeDeviceBatteryConsumption(cloudlet, vm);
+			if (batteryConsumption != Constants.INVALID_RESULT_DOUBLE) {
+				edgeDevice.updateBatteryCurrentCapacity(batteryConsumption);
+			}
+			return;
 		}
 	}
 
-	protected TaskExecutionResourceStatus canExecuteTaskOnResource(Cloudlet cloudlet, Vm vm) {
-		// The task can always execute on a cloud resource. 
-		if (!(vm instanceof MicroELement)) {
+	protected TaskExecutionResourceStatus canExecuteTaskOnResource(Cloudlet cloudlet, double cloudletDataSize, Vm vm) {
+		ResourceType resourceType = SimulationUtils.getResourceType(vm);
+
+		// A cloud resource can always execute the task.
+		if (resourceType == ResourceType.CLOUD_RESOURCE) {
 			return TaskExecutionResourceStatus.SUCCESS;
 		}
 
-		Task task = (Task) cloudlet;
-		if (task.getType() == TaskType.RT1 || task.getType() == TaskType.RT3) {
+		// Check if the edge resource has enough memory to execute the task.
+		if (!TaskUtils.canExecuteTaskOnResourceWithLimitedMemoryCapacity(cloudletDataSize, resourceType)) {
 			return TaskExecutionResourceStatus.FAILURE_EDGE_LIMITED_MEMORY;
 		}
 
@@ -221,7 +250,10 @@ public class DefaultEdgeCloudDatacenterBroker extends DatacenterBroker {
 			}
 
 			double batteryBefore = edgeDevice.getCurrentBatteryCapacity();
-			double batteryConsumption = TaskUtils.getEnergyConsumption(cloudlet, vm);
+			double batteryConsumption = getEdgeDeviceBatteryConsumption(cloudlet, vm);
+			if (batteryConsumption == Constants.INVALID_RESULT_DOUBLE) {
+				return TaskExecutionResourceStatus.FAILURE_UNKNOWN;
+			}
 			double batteryAfter = batteryBefore - batteryConsumption;
 			// Have at least 20% remaining battery after processing.
 			boolean lowBattery = (batteryAfter < (0.20 * edgeDevice.getMaxBatteryCapacity()));

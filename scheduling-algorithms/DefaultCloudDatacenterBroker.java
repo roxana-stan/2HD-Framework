@@ -29,14 +29,16 @@ public class DefaultCloudDatacenterBroker extends DatacenterBroker {
 		int vmIndex = 0;
 		for (Cloudlet cloudlet : getCloudletList()) {
 			Vm vm;
-			// if user didn't bind this cloudlet and it has not been executed yet
+			// If user didn't bind this cloudlet and it has not been executed yet.
 			if (cloudlet.getVmId() == -1) {
 				vm = getVmsCreatedList().get(vmIndex);
-			} else { // submit to the specific vm
+			} else {
+				// Submit the cloudlet to the specific VM.
 				vm = VmList.getById(getVmsCreatedList(), cloudlet.getVmId());
-				if (vm == null) { // vm was not created
-					Log.printLine(CloudSim.clock() + ": " + getName() + ": Postponing execution of cloudlet "
-							+ cloudlet.getCloudletId() + ": bount VM not available");
+				if (vm == null) {
+					// VM was not created.
+					Log.printLine(CloudSim.clock() + ": " + getName()
+							+ ": Postponing execution of cloudlet " + cloudlet.getCloudletId() + " - VM not available");
 					continue;
 				}
 			}
@@ -57,7 +59,7 @@ public class DefaultCloudDatacenterBroker extends DatacenterBroker {
 			getCloudletSubmittedList().add(cloudlet);
 		}
 
-		// remove submitted cloudlets from waiting list
+		// Remove the submitted cloudlets from waiting list.
 		for (Cloudlet cloudlet : getCloudletSubmittedList()) {
 			getCloudletList().remove(cloudlet);
 		}

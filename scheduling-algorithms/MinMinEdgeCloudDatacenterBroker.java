@@ -88,7 +88,7 @@ public class MinMinEdgeCloudDatacenterBroker extends DefaultEdgeCloudDatacenterB
 			handledCloudlets.add(cloudlet);
 
 			Task task = (Task) cloudlet;
-			TaskExecutionResourceStatus resourceStatus = canExecuteTaskOnResource(cloudlet, vm);
+			TaskExecutionResourceStatus resourceStatus = canExecuteTaskOnResource(cloudlet, TaskUtils.getTaskFileSize(task.getType()), vm);
 			task.setResourceStatus(resourceStatus);
 
 			if (resourceStatus != TaskExecutionResourceStatus.SUCCESS) {
@@ -120,7 +120,7 @@ public class MinMinEdgeCloudDatacenterBroker extends DefaultEdgeCloudDatacenterB
 			*/
 		}
 
-		// remove submitted cloudlets from waiting list
+		// Remove submitted cloudlets from the waiting list.
 		for (Cloudlet cloudlet : getCloudletSubmittedList()) {
 			getCloudletList().remove(cloudlet);
 		}

@@ -55,21 +55,23 @@ public class SjfEdgeCloudDatacenterBroker extends DefaultEdgeCloudDatacenterBrok
 		int vmIndex = 0;
 		for (Cloudlet cloudlet : getCloudletList()) {
 			Vm vm;
-			// if user didn't bind this cloudlet and it has not been executed yet
+			// If user didn't bind this cloudlet and it has not been executed yet.
 			if (cloudlet.getVmId() == -1) {
 				vm = getVmsCreatedList().get(vmIndex);
-			} else { // submit to the specific vm
+			} else {
+				// Submit the cloudlet to the specific VM.
 				vm = VmList.getById(getVmsCreatedList(), cloudlet.getVmId());
-				if (vm == null) { // vm was not created
-					Log.printLine(CloudSim.clock() + ": " + getName() + ": Postponing execution of cloudlet "
-							+ cloudlet.getCloudletId() + ": bount VM not available");
+				if (vm == null) {
+					// VM was not created.
+					Log.printLine(CloudSim.clock() + ": " + getName()
+							+ ": Postponing execution of cloudlet " + cloudlet.getCloudletId() + " - VM not available");
 					continue;
 				}
 			}
 			vmIndex = (vmIndex + 1) % getVmsCreatedList().size();
 
 			Task task = (Task) cloudlet;
-			TaskExecutionResourceStatus resourceStatus = canExecuteTaskOnResource(cloudlet, vm);
+			TaskExecutionResourceStatus resourceStatus = canExecuteTaskOnResource(cloudlet, TaskUtils.getTaskFileSize(task.getType()), vm);
 			task.setResourceStatus(resourceStatus);
 
 			if (resourceStatus != TaskExecutionResourceStatus.SUCCESS) {
@@ -92,7 +94,7 @@ public class SjfEdgeCloudDatacenterBroker extends DefaultEdgeCloudDatacenterBrok
 			getCloudletSubmittedList().add(cloudlet);
 		}
 
-		// remove submitted cloudlets from waiting list
+		// Remove submitted cloudlets from the waiting list.
 		for (Cloudlet cloudlet : getCloudletSubmittedList()) {
 			getCloudletList().remove(cloudlet);
 		}
