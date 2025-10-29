@@ -1,11 +1,8 @@
 package scheduling_algorithms;
 
-import java.util.List;
-
 import org.cloudbus.cloudsim.Cloudlet;
 import org.cloudbus.cloudsim.Datacenter;
 import org.cloudbus.cloudsim.DatacenterBroker;
-import org.cloudbus.cloudsim.Host;
 import org.cloudbus.cloudsim.Log;
 import org.cloudbus.cloudsim.Vm;
 import org.cloudbus.cloudsim.core.CloudSim;
@@ -198,26 +195,15 @@ public class DefaultEdgeCloudDatacenterBroker extends DatacenterBroker {
 			return;
 		}
 
-		int datacenterId = getVmsToDatacentersMap().get(vm.getId());
-		Datacenter datacenter = (Datacenter) CloudSim.getEntity(datacenterId);
-
-		List<Host> hostList = datacenter.getHostList();
-		for (Host host : hostList) {
-			if (!host.getVmList().contains(vm)) {
-				continue;
-			}
-
-			EdgeDevice edgeDevice = (EdgeDevice) host;
-			if (!edgeDevice.isEnabled()) {
-				Log.printLine(CloudSim.clock() + ": " + getName() + ": Battery of EdgeDevice #" + edgeDevice.getId() + " is already drained!" );
-				return;
-			}
-
-			double batteryConsumption = getEdgeDeviceBatteryConsumption(cloudlet, vm);
-			if (batteryConsumption != Constants.INVALID_RESULT_DOUBLE) {
-				edgeDevice.updateBatteryCurrentCapacity(batteryConsumption);
-			}
+		EdgeDevice edgeDevice = (EdgeDevice) vm.getHost();
+		if (!edgeDevice.isEnabled()) {
+			Log.printLine(CloudSim.clock() + ": " + getName() + ": Battery of EdgeDevice #" + edgeDevice.getId() + " is already drained!" );
 			return;
+		}
+
+		double batteryConsumption = getEdgeDeviceBatteryConsumption(cloudlet, vm);
+		if (batteryConsumption != Constants.INVALID_RESULT_DOUBLE) {
+			edgeDevice.updateBatteryCurrentCapacity(batteryConsumption);
 		}
 	}
 
@@ -235,32 +221,20 @@ public class DefaultEdgeCloudDatacenterBroker extends DatacenterBroker {
 		}
 
 		// Check if the edge device has enough battery to execute the task.
-		int datacenterId = getVmsToDatacentersMap().get(vm.getId());
-		Datacenter datacenter = (Datacenter) CloudSim.getEntity(datacenterId);
-
-		List<Host> hostList = datacenter.getHostList();
-		for (Host host : hostList) {
-			if (!host.getVmList().contains(vm)) {
-				continue;
-			}
-
-			EdgeDevice edgeDevice = (EdgeDevice) host;
-			if (!edgeDevice.isEnabled()) {
-				return TaskExecutionResourceStatus.FAILURE_EDGE_DRAINED_BATTERY;
-			}
-
-			double batteryBefore = edgeDevice.getCurrentBatteryCapacity();
-			double batteryConsumption = getEdgeDeviceBatteryConsumption(cloudlet, vm);
-			if (batteryConsumption == Constants.INVALID_RESULT_DOUBLE) {
-				return TaskExecutionResourceStatus.FAILURE_UNKNOWN;
-			}
-			double batteryAfter = batteryBefore - batteryConsumption;
-			// Have at least 20% remaining battery after processing.
-			boolean lowBattery = (batteryAfter < (0.20 * edgeDevice.getMaxBatteryCapacity()));
-			return (lowBattery ? TaskExecutionResourceStatus.FAILURE_EDGE_DRAINED_BATTERY : TaskExecutionResourceStatus.SUCCESS);
+		EdgeDevice edgeDevice = (EdgeDevice) vm.getHost();
+		if (!edgeDevice.isEnabled()) {
+			return TaskExecutionResourceStatus.FAILURE_EDGE_DRAINED_BATTERY;
 		}
 
-		return TaskExecutionResourceStatus.FAILURE_UNKNOWN;
+		double batteryBefore = edgeDevice.getCurrentBatteryCapacity();
+		double batteryConsumption = getEdgeDeviceBatteryConsumption(cloudlet, vm);
+		if (batteryConsumption == Constants.INVALID_RESULT_DOUBLE) {
+			return TaskExecutionResourceStatus.FAILURE_UNKNOWN;
+		}
+		double batteryAfter = batteryBefore - batteryConsumption;
+		// Have at least 20% remaining battery after processing.
+		boolean lowBattery = (batteryAfter < (0.20 * edgeDevice.getMaxBatteryCapacity()));
+		return (lowBattery ? TaskExecutionResourceStatus.FAILURE_EDGE_DRAINED_BATTERY : TaskExecutionResourceStatus.SUCCESS);
 	}
 
 }
