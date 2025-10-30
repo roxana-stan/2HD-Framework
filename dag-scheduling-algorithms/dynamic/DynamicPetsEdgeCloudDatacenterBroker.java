@@ -33,12 +33,12 @@ import scheduling_evaluation.TaskUtils;
 import scheduling_evaluation.Types.ResourceType;
 import scheduling_evaluation.Types.TaskExecutionResourceStatus;
 
-public class DynamicHeftEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDatacenterBroker {
+public class DynamicPetsEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDatacenterBroker {
 
 	private ExecutorService executor = null;
 	private ReentrantLock lock = null;
 
-	public DynamicHeftEdgeCloudDatacenterBroker(String name, TaskGraph taskGraph) throws Exception {
+	public DynamicPetsEdgeCloudDatacenterBroker(String name, TaskGraph taskGraph) throws Exception {
 		super(name, taskGraph);
 
 		int taskCount = taskGraph.getTaskCount();
@@ -70,8 +70,8 @@ public class DynamicHeftEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDat
 		Instant startTime = Instant.now();
 
 		this.taskGraph.clearAndPrecomputeCosts();
-		computeHeftRanks();
-		sortTasksByHeftRanks();
+		computePetsRanks();
+		sortTasksByPetsRanks();
 
 		CountDownLatch latch = new CountDownLatch(1 + this.taskSubgraphCount);
 		this.executor.submit(() -> {
@@ -190,7 +190,7 @@ public class DynamicHeftEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDat
 					}
 				}
 
-				Double taskPriority = this.taskHeftRankMappings.get(task);
+				Double taskPriority = this.taskPetsRankMappings.get(task);
 				Log.printLine("Task " + task + " (Priority: " + dft.format(taskPriority) + ")"
 							+ " -> " + "Resource #" + allocatedResource + " -> " + "AFT: " + taskEFT);
 				this.taskToResourceMappings.put(task, allocatedResource);
@@ -211,9 +211,9 @@ public class DynamicHeftEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDat
 		List<Integer> taskIds = DagUtils.loadTaskSubgraph(taskSubgraphFilename, this.taskGraph);
 
 		this.taskGraph.clearAndPrecomputeCosts();
-		clearHeftRanks();
-		computeHeftRanks();
-		sortTasksByHeftRanks();
+		clearPetsRanks();
+		computePetsRanks();
+		sortTasksByPetsRanks();
 
 		int brokerId = getId();
 		List<? extends Cloudlet> cloudlets = DagEntityCreator.createGenericTasks(brokerId, taskIds, taskSubgraphArrivalTime);

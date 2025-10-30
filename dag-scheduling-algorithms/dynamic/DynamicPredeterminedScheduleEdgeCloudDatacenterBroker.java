@@ -1,6 +1,5 @@
 package dag_scheduling_algorithms.dynamic;
 
-import java.text.DecimalFormat;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
@@ -33,12 +32,12 @@ import scheduling_evaluation.TaskUtils;
 import scheduling_evaluation.Types.ResourceType;
 import scheduling_evaluation.Types.TaskExecutionResourceStatus;
 
-public class DynamicHeftEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDatacenterBroker {
+public class DynamicPredeterminedScheduleEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDatacenterBroker {
 
 	private ExecutorService executor = null;
 	private ReentrantLock lock = null;
 
-	public DynamicHeftEdgeCloudDatacenterBroker(String name, TaskGraph taskGraph) throws Exception {
+	public DynamicPredeterminedScheduleEdgeCloudDatacenterBroker(String name, TaskGraph taskGraph, LinkedList<Integer> schedule) throws Exception {
 		super(name, taskGraph);
 
 		int taskCount = taskGraph.getTaskCount();
@@ -55,6 +54,8 @@ public class DynamicHeftEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDat
 
 		initializeDynamicTaskSubgraphsInfo();
 
+		this.sortedTasksByPriorityDesc = new LinkedList<Integer>(schedule);
+
 		this.executor = Executors.newFixedThreadPool(1 + this.taskSubgraphCount);
 		this.lock = new ReentrantLock();
 	}
@@ -70,8 +71,6 @@ public class DynamicHeftEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDat
 		Instant startTime = Instant.now();
 
 		this.taskGraph.clearAndPrecomputeCosts();
-		computeHeftRanks();
-		sortTasksByHeftRanks();
 
 		CountDownLatch latch = new CountDownLatch(1 + this.taskSubgraphCount);
 		this.executor.submit(() -> {
@@ -153,8 +152,6 @@ public class DynamicHeftEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDat
 	}
 
 	private void computeSchedule() {
-		DecimalFormat dft = new DecimalFormat("##.###");
-
 		while (taskListContainsUnscheduledTasks()) {
 			this.lock.lock();
 			Integer task = Constants.INVALID_RESULT_INT;
@@ -190,8 +187,7 @@ public class DynamicHeftEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDat
 					}
 				}
 
-				Double taskPriority = this.taskHeftRankMappings.get(task);
-				Log.printLine("Task " + task + " (Priority: " + dft.format(taskPriority) + ")"
+				Log.printLine("Task " + task
 							+ " -> " + "Resource #" + allocatedResource + " -> " + "AFT: " + taskEFT);
 				this.taskToResourceMappings.put(task, allocatedResource);
 				this.taskAFT.put(task, taskEFT);
@@ -211,9 +207,6 @@ public class DynamicHeftEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDat
 		List<Integer> taskIds = DagUtils.loadTaskSubgraph(taskSubgraphFilename, this.taskGraph);
 
 		this.taskGraph.clearAndPrecomputeCosts();
-		clearHeftRanks();
-		computeHeftRanks();
-		sortTasksByHeftRanks();
 
 		int brokerId = getId();
 		List<? extends Cloudlet> cloudlets = DagEntityCreator.createGenericTasks(brokerId, taskIds, taskSubgraphArrivalTime);

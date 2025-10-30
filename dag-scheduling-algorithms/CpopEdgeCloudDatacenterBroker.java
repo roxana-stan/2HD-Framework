@@ -1,4 +1,4 @@
-package dag_scheduling_algorithms.dynamic;
+package dag_scheduling_algorithms;
 
 import java.text.DecimalFormat;
 import java.time.Duration;
@@ -7,11 +7,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.IntStream;
+import java.util.PriorityQueue;
 
 import org.cloudbus.cloudsim.Cloudlet;
 import org.cloudbus.cloudsim.Log;
@@ -20,10 +16,7 @@ import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.core.CloudSimTags;
 import org.cloudbus.cloudsim.lists.VmList;
 
-import dag_scheduling_algorithms.DefaultDagEdgeCloudDatacenterBroker;
-import scheduling_evaluation.ConcurrentUtils;
 import scheduling_evaluation.Constants;
-import scheduling_evaluation.DagEntityCreator;
 import scheduling_evaluation.DagSchedulingMetrics;
 import scheduling_evaluation.DagUtils;
 import scheduling_evaluation.Pair;
@@ -33,12 +26,9 @@ import scheduling_evaluation.TaskUtils;
 import scheduling_evaluation.Types.ResourceType;
 import scheduling_evaluation.Types.TaskExecutionResourceStatus;
 
-public class DynamicHeftEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDatacenterBroker {
+public class CpopEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDatacenterBroker {
 
-	private ExecutorService executor = null;
-	private ReentrantLock lock = null;
-
-	public DynamicHeftEdgeCloudDatacenterBroker(String name, TaskGraph taskGraph) throws Exception {
+	public CpopEdgeCloudDatacenterBroker(String name, TaskGraph taskGraph) throws Exception {
 		super(name, taskGraph);
 
 		int taskCount = taskGraph.getTaskCount();
@@ -53,10 +43,8 @@ public class DynamicHeftEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDat
 			this.resourceAllocatedTimeSlots.put(resource, new LinkedList<Pair<Double, Double>>());
 		}
 
-		initializeDynamicTaskSubgraphsInfo();
-
-		this.executor = Executors.newFixedThreadPool(1 + this.taskSubgraphCount);
-		this.lock = new ReentrantLock();
+		this.cpopTasks = new PriorityQueue<>(
+				(task1, task2) -> Double.compare(this.taskCpopRankMappings.get(task2), this.taskCpopRankMappings.get(task1)));
 	}
 
 	/**
@@ -70,34 +58,10 @@ public class DynamicHeftEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDat
 		Instant startTime = Instant.now();
 
 		this.taskGraph.clearAndPrecomputeCosts();
-		computeHeftRanks();
-		sortTasksByHeftRanks();
-
-		CountDownLatch latch = new CountDownLatch(1 + this.taskSubgraphCount);
-		this.executor.submit(() -> {
-			latch.countDown();
-		});
-		IntStream.range(0, this.taskSubgraphCount).forEach(taskSubgraphIdx -> this.executor.submit(() -> {
-			this.lock.lock();
-			try {
-				Log.printLine("> Attempt to add task subgraph " + taskSubgraphIdx);
-				addDynamicTaskSubgraph(taskSubgraphIdx);
-			} finally {
-				Log.printLine("< Finalized attempt to add task subgraph " + taskSubgraphIdx);
-				this.lock.unlock();
-				latch.countDown();
-			}
-		}));
-		try {
-			latch.await();
-		} catch (InterruptedException e) {
-			Log.printLine("< Count down latch interrupted; waiting for 60 seconds then killing non-finished tasks");
-			e.printStackTrace();
-		}
-		ConcurrentUtils.stop(this.executor);
+		computeCpopRanks();
+		findCriticalPath();
 
 		// DAG task scheduling.
-		Log.printLine("> " + this.sortedTasksByPriorityDesc.size() + " tasks to be scheduled");
 		computeSchedule();
 
 		DagUtils.setTaskCount(this.taskGraph.getTaskCount());
@@ -145,31 +109,34 @@ public class DynamicHeftEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDat
 		DagSchedulingMetrics.setSchedulingTimeDuration(schedulingTimeDuration);
 	}
 
-	private boolean taskListContainsUnscheduledTasks() {
-		this.lock.lock();
-		boolean containsUnscheduledTasks = !this.sortedTasksByPriorityDesc.isEmpty();
-		this.lock.unlock();
-		return containsUnscheduledTasks;
-	}
-
 	private void computeSchedule() {
 		DecimalFormat dft = new DecimalFormat("##.###");
 
-		while (taskListContainsUnscheduledTasks()) {
-			this.lock.lock();
-			Integer task = Constants.INVALID_RESULT_INT;
-			try {
-				task = this.sortedTasksByPriorityDesc.getFirst();
-				double taskDataSize = this.taskGraph.getTaskInputData(task);
-				Log.printLine("> Attempt to schedule task " + task);
+		List<Integer> criticalPathTasks = this.criticalPath.getKey();
+		Integer criticalPathResource = this.criticalPath.getValue();
 
-				this.sortedTasksByPriorityDesc.remove(task);
+		this.cpopTasks.addAll(this.taskGraph.getEntryTasks());
 
-				Double taskEFT = Double.MAX_VALUE;
-				Double taskEST = Constants.INVALID_RESULT_DOUBLE;
-				Integer allocatedResource = Constants.INVALID_RESULT_INT;
-				int newResourceAllocatedTimeSlotIdx = Constants.INVALID_RESULT_INT;
+		while (!this.cpopTasks.isEmpty()) {
+			Integer task = this.cpopTasks.poll();
+			double taskDataSize = this.taskGraph.getTaskInputData(task);
+			Log.printLine("> Attempt to schedule task " + task);
 
+			Double taskEFT = Double.MAX_VALUE;
+			Double taskEST = Constants.INVALID_RESULT_DOUBLE;
+			Integer allocatedResource = Constants.INVALID_RESULT_INT;
+			int newResourceAllocatedTimeSlotIdx = Constants.INVALID_RESULT_INT;
+
+			if (criticalPathTasks.contains(task)) {
+				Double computationCost = this.taskGraph.getComputationCost(task, criticalPathResource);
+				Double EST = computeEST(task, criticalPathResource);
+				Double EFT = computationCost + EST;
+
+				taskEFT = EFT;
+				taskEST = EST;
+				allocatedResource = criticalPathResource;
+				newResourceAllocatedTimeSlotIdx = this.resourceAllocatedTimeSlotIdx;
+			} else {
 				for (Map.Entry<Integer, ResourceType> resourceEntry : this.taskGraph.getResources().entrySet()) {
 					Integer resource = resourceEntry.getKey();
 					ResourceType resourceType = resourceEntry.getValue();
@@ -189,35 +156,24 @@ public class DynamicHeftEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDat
 						newResourceAllocatedTimeSlotIdx = this.resourceAllocatedTimeSlotIdx;
 					}
 				}
-
-				Double taskPriority = this.taskHeftRankMappings.get(task);
-				Log.printLine("Task " + task + " (Priority: " + dft.format(taskPriority) + ")"
-							+ " -> " + "Resource #" + allocatedResource + " -> " + "AFT: " + taskEFT);
-				this.taskToResourceMappings.put(task, allocatedResource);
-				this.taskAFT.put(task, taskEFT);
-				Pair<Double, Double> newResourceAllocatedTimeSlot = new Pair<Double, Double>(taskEST, taskEFT);
-				this.resourceAllocatedTimeSlots.get(allocatedResource).add(newResourceAllocatedTimeSlotIdx, newResourceAllocatedTimeSlot);
-			} finally {
-				Log.printLine("< Finalized attempt to schedule task " + task);
-				this.lock.unlock();
 			}
+
+			Double taskPriority = this.taskCpopRankMappings.get(task);
+			Log.printLine("Task " + task + " (Priority: " + dft.format(taskPriority) + ")"
+						+ " -> " + "Resource #" + allocatedResource + " -> " + "AFT: " + taskEFT);
+			this.taskToResourceMappings.put(task, allocatedResource);
+			this.taskAFT.put(task, taskEFT);
+			Pair<Double, Double> newResourceAllocatedTimeSlot = new Pair<Double, Double>(taskEST, taskEFT);
+			this.resourceAllocatedTimeSlots.get(allocatedResource).add(newResourceAllocatedTimeSlotIdx, newResourceAllocatedTimeSlot);
+
+			for (Integer succTask : this.taskGraph.getSuccessorTasksInfo(task).keySet()) {
+				if (isReadyTask(succTask)) {
+					this.cpopTasks.add(succTask);
+				}
+			}
+
+			Log.printLine("< Finalized attempt to schedule task " + task);
 		}
-	}
-
-	private void addDynamicTaskSubgraph(int taskSubgraphIdx) {
-		Double taskSubgraphArrivalTime = this.taskSubgraphArrivalTimes.get(taskSubgraphIdx);
-		String taskSubgraphFilename = this.taskSubgraphFilenames.get(taskSubgraphIdx);
-
-		List<Integer> taskIds = DagUtils.loadTaskSubgraph(taskSubgraphFilename, this.taskGraph);
-
-		this.taskGraph.clearAndPrecomputeCosts();
-		clearHeftRanks();
-		computeHeftRanks();
-		sortTasksByHeftRanks();
-
-		int brokerId = getId();
-		List<? extends Cloudlet> cloudlets = DagEntityCreator.createGenericTasks(brokerId, taskIds, taskSubgraphArrivalTime);
-		submitCloudletList(cloudlets);
 	}
 
 }

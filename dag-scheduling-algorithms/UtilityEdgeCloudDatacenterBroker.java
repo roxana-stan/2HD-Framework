@@ -8,8 +8,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import javafx.util.Pair;
-
 import org.cloudbus.cloudsim.Cloudlet;
 import org.cloudbus.cloudsim.Log;
 import org.cloudbus.cloudsim.Vm;
@@ -20,6 +18,7 @@ import org.cloudbus.cloudsim.lists.VmList;
 import scheduling_evaluation.Constants;
 import scheduling_evaluation.DagSchedulingMetrics;
 import scheduling_evaluation.DagUtils;
+import scheduling_evaluation.Pair;
 import scheduling_evaluation.Task;
 import scheduling_evaluation.TaskGraph;
 import scheduling_evaluation.TaskUtils;
@@ -28,7 +27,9 @@ import scheduling_evaluation.Types.TaskExecutionResourceStatus;
 
 public class UtilityEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDatacenterBroker {
 
-	public UtilityEdgeCloudDatacenterBroker(String name, TaskGraph taskGraph) throws Exception {
+	private boolean hybrid = false;
+
+	public UtilityEdgeCloudDatacenterBroker(String name, TaskGraph taskGraph, boolean hybrid) throws Exception {
 		super(name, taskGraph);
 
 		int taskCount = taskGraph.getTaskCount();
@@ -42,6 +43,8 @@ public class UtilityEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDatacen
 		for (Integer resource : this.taskGraph.getResources().keySet()) {
 			this.resourceAllocatedTimeSlots.put(resource, new LinkedList<Pair<Double, Double>>());
 		}
+
+		this.hybrid = hybrid;
 	}
 
 	/**
@@ -54,13 +57,13 @@ public class UtilityEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDatacen
 	protected void submitCloudlets() {
 		Instant startTime = Instant.now();
 
-		computeUtilityRanks();
+		this.taskGraph.clearAndPrecomputeCosts();
+		computeUtilityRanks(this.hybrid);
 		sortTasksByUtilityRanks();
 
-		if (!this.sortedTasksByPriorityDesc.isEmpty()) {
-			Log.printLine("> " + this.sortedTasksByPriorityDesc.size() + " remaining tasks to be scheduled");
-			computeSchedule();
-		}
+		// DAG task scheduling.
+		Log.printLine("> " + this.sortedTasksByPriorityDesc.size() + " tasks to be scheduled");
+		computeSchedule();
 
 		DagUtils.setTaskCount(this.taskGraph.getTaskCount());
 
@@ -72,7 +75,7 @@ public class UtilityEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDatacen
 			int vmId = vm.getId();
 
 			Task task = (Task) cloudlet;
-			TaskExecutionResourceStatus resourceStatus = canExecuteTaskOnResource(cloudlet, this.taskGraph.computeTaskInputData(taskId), vm);
+			TaskExecutionResourceStatus resourceStatus = canExecuteTaskOnResource(cloudlet, this.taskGraph.getTaskInputData(taskId), vm);
 			task.setResourceStatus(resourceStatus);
 
 			if (resourceStatus != TaskExecutionResourceStatus.SUCCESS) {
@@ -85,7 +88,7 @@ public class UtilityEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDatacen
 			updateEdgeDeviceBattery(cloudlet, vm);
 
 			// Update the task's length according to the task's actual processing time on the selected resource.
-			Double computationTime = this.taskGraph.getComputationCost(taskId, vmId);
+			Double computationTime = getCloudletComputationTime(taskId, vmId);
 			task.setTotalExecutionTime(computationTime);
 			cloudlet.setCloudletLength((long) (computationTime * vm.getMips()));
 
@@ -114,7 +117,7 @@ public class UtilityEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDatacen
 			Integer task = Constants.INVALID_RESULT_INT;
 			try {
 				task = this.sortedTasksByPriorityDesc.getFirst();
-				double taskDataSize = this.taskGraph.computeTaskInputData(task);
+				double taskDataSize = this.taskGraph.getTaskInputData(task);
 				Log.printLine("> Attempt to schedule task " + task);
 
 				this.sortedTasksByPriorityDesc.remove(task);

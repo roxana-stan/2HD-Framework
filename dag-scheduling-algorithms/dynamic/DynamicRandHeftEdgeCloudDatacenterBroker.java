@@ -14,8 +14,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.IntStream;
 
-import javafx.util.Pair;
-
 import org.cloudbus.cloudsim.Cloudlet;
 import org.cloudbus.cloudsim.Log;
 import org.cloudbus.cloudsim.Vm;
@@ -29,18 +27,19 @@ import scheduling_evaluation.Constants;
 import scheduling_evaluation.DagEntityCreator;
 import scheduling_evaluation.DagSchedulingMetrics;
 import scheduling_evaluation.DagUtils;
+import scheduling_evaluation.Pair;
 import scheduling_evaluation.Task;
 import scheduling_evaluation.TaskGraph;
 import scheduling_evaluation.TaskUtils;
 import scheduling_evaluation.Types.ResourceType;
 import scheduling_evaluation.Types.TaskExecutionResourceStatus;
 
-public class DynamicRandHeftDatacenterBroker extends DefaultDagEdgeCloudDatacenterBroker {
+public class DynamicRandHeftEdgeCloudDatacenterBroker extends DefaultDagEdgeCloudDatacenterBroker {
 
 	private ExecutorService executor = null;
 	private ReentrantLock lock = null;
 
-	public DynamicRandHeftDatacenterBroker(String name, TaskGraph taskGraph) throws Exception {
+	public DynamicRandHeftEdgeCloudDatacenterBroker(String name, TaskGraph taskGraph) throws Exception {
 		super(name, taskGraph);
 
 		int taskCount = taskGraph.getTaskCount();
@@ -71,13 +70,12 @@ public class DynamicRandHeftDatacenterBroker extends DefaultDagEdgeCloudDatacent
 	protected void submitCloudlets() {
 		Instant startTime = Instant.now();
 
-		computeUpwardRanks();
-		sortTasksByUpwardRanks();
+		this.taskGraph.clearAndPrecomputeCosts();
+		computeHeftRanks();
+		sortTasksByHeftRanks();
 
 		CountDownLatch latch = new CountDownLatch(1 + this.taskSubgraphCount);
 		this.executor.submit(() -> {
-			// DAG task scheduling.
-			computeSchedule();
 			latch.countDown();
 		});
 		IntStream.range(0, this.taskSubgraphCount).forEach(taskSubgraphIdx -> this.executor.submit(() -> {
@@ -99,10 +97,9 @@ public class DynamicRandHeftDatacenterBroker extends DefaultDagEdgeCloudDatacent
 		}
 		ConcurrentUtils.stop(this.executor);
 
-		if (taskListContainsUnscheduledTasks()) {
-			Log.printLine("> " + this.sortedTasksByPriorityDesc.size() + " remaining tasks to be scheduled");
-			computeSchedule();
-		}
+		// DAG task scheduling.
+		Log.printLine("> " + this.sortedTasksByPriorityDesc.size() + " tasks to be scheduled");
+		computeSchedule();
 
 		DagUtils.setTaskCount(this.taskGraph.getTaskCount());
 
@@ -114,7 +111,7 @@ public class DynamicRandHeftDatacenterBroker extends DefaultDagEdgeCloudDatacent
 			int vmId = vm.getId();
 
 			Task task = (Task) cloudlet;
-			TaskExecutionResourceStatus resourceStatus = canExecuteTaskOnResource(cloudlet, this.taskGraph.computeTaskInputData(taskId), vm);
+			TaskExecutionResourceStatus resourceStatus = canExecuteTaskOnResource(cloudlet, this.taskGraph.getTaskInputData(taskId), vm);
 			task.setResourceStatus(resourceStatus);
 
 			if (resourceStatus != TaskExecutionResourceStatus.SUCCESS) {
@@ -127,7 +124,7 @@ public class DynamicRandHeftDatacenterBroker extends DefaultDagEdgeCloudDatacent
 			updateEdgeDeviceBattery(cloudlet, vm);
 
 			// Update the task's length according to the task's actual processing time on the selected resource.
-			Double computationTime = this.taskGraph.getComputationCost(taskId, vmId);
+			Double computationTime = getCloudletComputationTime(taskId, vmId);
 			task.setTotalExecutionTime(computationTime);
 			cloudlet.setCloudletLength((long) (computationTime * vm.getMips()));
 
@@ -164,7 +161,7 @@ public class DynamicRandHeftDatacenterBroker extends DefaultDagEdgeCloudDatacent
 			Integer task = Constants.INVALID_RESULT_INT;
 			try {
 				task = getNextUnscheduledTask();
-				double taskDataSize = this.taskGraph.computeTaskInputData(task);
+				double taskDataSize = this.taskGraph.getTaskInputData(task);
 				Log.printLine("> Attempt to schedule task " + task);
 
 				this.sortedTasksByPriorityDesc.remove(task);
@@ -194,7 +191,7 @@ public class DynamicRandHeftDatacenterBroker extends DefaultDagEdgeCloudDatacent
 					}
 				}
 
-				Double taskPriority = this.taskUpwardRankMappings.get(task);
+				Double taskPriority = this.taskHeftRankMappings.get(task);
 				Log.printLine("Task " + task + " (Priority: " + dft.format(taskPriority) + ")"
 							+ " -> " + "Resource #" + allocatedResource + " -> " + "AFT: " + taskEFT);
 				this.taskToResourceMappings.put(task, allocatedResource);
@@ -230,9 +227,8 @@ public class DynamicRandHeftDatacenterBroker extends DefaultDagEdgeCloudDatacent
 	}
 
 	private boolean arePredecessorTasksScheduled(Integer task) {
-		List<Pair<Integer, Double>> predTasksInfo = this.taskGraph.getPredecessorTasksInfo(task);
-		for (Pair<Integer, Double> predTaskInfo : predTasksInfo) {
-			Integer predTask = predTaskInfo.getKey();
+		Map<Integer, Double> predTasksInfo = this.taskGraph.getPredecessorTasksInfo(task);
+		for (Integer predTask : predTasksInfo.keySet()) {
 			if (!this.taskToResourceMappings.containsKey(predTask)) {
 				return false;
 			}
@@ -242,18 +238,17 @@ public class DynamicRandHeftDatacenterBroker extends DefaultDagEdgeCloudDatacent
 
 	private void addDynamicTaskSubgraph(int taskSubgraphIdx) {
 		Double taskSubgraphArrivalTime = this.taskSubgraphArrivalTimes.get(taskSubgraphIdx);
-		Integer taskSubgraphFirstTask = this.taskSubgraphFirstTasks.get(taskSubgraphIdx);
 		String taskSubgraphFilename = this.taskSubgraphFilenames.get(taskSubgraphIdx);
 
-		List<Integer> tasks = DagUtils.loadTaskSubgraph(taskSubgraphFilename, this.taskGraph);
-		int taskSubgraphTaskCount = tasks.size();
+		List<Integer> taskIds = DagUtils.loadTaskSubgraph(taskSubgraphFilename, this.taskGraph);
 
-		clearUpwardRanks();
-		computeUpwardRanks();
-		sortTasksByUpwardRanks();
+		this.taskGraph.clearAndPrecomputeCosts();
+		clearHeftRanks();
+		computeHeftRanks();
+		sortTasksByHeftRanks();
 
 		int brokerId = getId();
-		List<? extends Cloudlet> cloudlets = DagEntityCreator.createGenericTasks(brokerId, taskSubgraphFirstTask, taskSubgraphTaskCount, taskSubgraphArrivalTime);
+		List<? extends Cloudlet> cloudlets = DagEntityCreator.createGenericTasks(brokerId, taskIds, taskSubgraphArrivalTime);
 		submitCloudletList(cloudlets);
 	}
 
