@@ -20,8 +20,7 @@ public class TaskSubgraphGenerator {
 
 	public enum TaskSubgraphGeneratorType {
 		TASK_LEVEL_GENERATOR,
-		TASK_SUBGRAPH_LEVEL_GENERATOR,
-		PEGASUS_GENERATOR;
+		TASK_SUBGRAPH_LEVEL_GENERATOR;
 	}
 
 	private static Map<Integer, Integer> newTaskToOriginalTaskMappings = new HashMap<Integer, Integer>();
@@ -69,11 +68,6 @@ public class TaskSubgraphGenerator {
 	private static void generateTaskSubgraph(TaskSubgraphGeneratorType generatorType, String taskSubgraphFilename,
 											TaskGraph taskGraph, String taskGraphFilename) {
 		/* Generate the task subgraph data. */
-		if (generatorType == TaskSubgraphGeneratorType.PEGASUS_GENERATOR) {
-			generateTaskSubgraphViaPegasusGenerator(taskSubgraphFilename, taskGraph, taskGraphFilename);
-			return;
-		}
-
 		List<Integer> tasks = new LinkedList<Integer>();
 		Map<Pair<Integer, Integer>, Double> dependencies = new HashMap<Pair<Integer, Integer>, Double>();
 		List<Integer> exitTasks = new LinkedList<Integer>();
@@ -128,72 +122,6 @@ public class TaskSubgraphGenerator {
 
 			// Exit task information.
 			Integer exitTask = exitTasks.get(0);
-			bw.write("" + exitTask);
-			bw.newLine();
-
-			bw.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-
-	private static void generateTaskSubgraphViaPegasusGenerator(String taskSubgraphFilename, TaskGraph taskGraph,
-																String pegasusTaskGraphFilename) {
-		// Make use of an existing Pegasus task graph to generate the task subgraph.
-		TaskGraph pegasusTaskGraph = DagUtils.loadTaskGraph(pegasusTaskGraphFilename);
-		if (pegasusTaskGraph.getEntryTasks().size() != 1 || pegasusTaskGraph.getExitTasks().size() != 1) {
-			Log.printLine("Pegasus task graph should have 1 pseudo-entry task and 1 pseudo-exit task: " + pegasusTaskGraphFilename);
-			return;
-		}
-
-		/* Save the task subgraph data to the file. */
-		try {
-			File fout = new File(taskSubgraphFilename);
-			FileOutputStream fos = new FileOutputStream(fout);
-			BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(fos));
-
-			// Tasks information.
-			int taskCount = pegasusTaskGraph.getTaskCount() - 1;	// Do not add the pseudo-entry task.
-			bw.write("" + taskCount);
-			bw.newLine();
-
-			for (Integer task : pegasusTaskGraph.getTasks()) {
-				if (pegasusTaskGraph.isEntryTask(task)) {
-					// Do not add the pseudo-entry task.
-					continue;
-				}
-				Integer generatedTask = taskOffset + task;
-				bw.write("" + generatedTask);
-				Map<ResourceType, Double> resourceComputationCosts = pegasusTaskGraph.getComputationCosts().get(task);
-				for (ResourceType resourceType : ResourceType.values()) {
-					Double resourceComputationCost = resourceComputationCosts.get(resourceType);
-					bw.write(" " + resourceComputationCost);
-				}
-				bw.newLine();
-			}
-
-			// Dependencies information.
-			int dependencyCount = 0;
-			for (Integer task : pegasusTaskGraph.getTasks()) {
-				dependencyCount += pegasusTaskGraph.getSuccessorTasksInfo(task).size();
-			}
-			bw.write("" + dependencyCount);
-			bw.newLine();
-
-			Integer originalEntryTask = taskGraph.getEntryTasks().get(0);
-			for (Integer task : pegasusTaskGraph.getTasks()) {
-				Integer generatedTask = pegasusTaskGraph.isEntryTask(task) ? originalEntryTask : (taskOffset + task);
-				for (Map.Entry<Integer, Double> succTaskInfo : pegasusTaskGraph.getSuccessorTasksInfo(task).entrySet()) {
-					Integer succTask = succTaskInfo.getKey();
-					Double dataDependency = succTaskInfo.getValue();
-					Integer generatedSuccTask = pegasusTaskGraph.isEntryTask(succTask) ? originalEntryTask : (taskOffset + succTask);
-					bw.write(generatedTask + " " + generatedSuccTask + " " + dataDependency);
-					bw.newLine();
-				}
-			}
-
-			// Exit task information.
-			Integer exitTask = taskOffset + pegasusTaskGraph.getExitTasks().get(0);
 			bw.write("" + exitTask);
 			bw.newLine();
 
