@@ -28,13 +28,6 @@ public class DagSimulation {
 	public static final int EXECUTION_COUNT = 1000;
 
 	public static void main(String[] args) {
-		/*
-		 * Broker types:
-		 * - EDGE_CLOUD_HEFT_BROKER
-		 * - EDGE_CLOUD_RAND_HEFT_BROKER
-		 * - EDGE_CLOUD_UTILITY_BROKER
-		 * - EDGE_CLOUD_RAND_UTILITY_BROKER
-		 */
 		DagBrokerType dagBrokerType = DagBrokerType.EDGE_CLOUD_HEFT_BROKER;
 		SchedulingMode schedulingMode = SchedulingMode.STATIC;
 		String taskGraphFilename = "";
@@ -150,7 +143,7 @@ public class DagSimulation {
 		Log.setDisabled(!verboseMode);
 
 		// Initialize the CloudSim library.
-		CloudSim.init(Constants.USER_COUNT, Calendar.getInstance(), false);
+		CloudSim.init(Constants.USER_COUNT, Calendar.getInstance(), false, 0.001);
 
 		// Create edge and cloud datacenters.
 		int datacenterIdx = 1;
@@ -172,6 +165,10 @@ public class DagSimulation {
 			return null;
 		}
 
+		// TODO: Load predetermined schedules (QL-HEFT, QL-2HD).
+		taskGraph.setQlHeftSchedule(null);
+		taskGraph.setQl2hdSchedule(null);
+
 		// Create broker.
 		int brokerIdx = 1;
 		DatacenterBroker broker = DagEntityCreator.createDagBroker("" + brokerIdx, dagBrokerType, taskGraph, schedulingMode);
@@ -192,13 +189,7 @@ public class DagSimulation {
 		broker.submitVmList(resources);
 
 		// Create tasks and submit them to broker.
-		List<Integer> entryTaskIds = taskGraph.getEntryTasks();
-		if (entryTaskIds.size() != 1) {
-			// Assume that the task graph has a single entry task.
-			return null;
-		}
-		int taskFirstId = entryTaskIds.get(0);
-		List<Task> tasks = DagEntityCreator.createGenericTasks(brokerId, taskFirstId, taskGraph.getTaskCount(), Constants.DEFAULT_TASK_ARRIVAL_TIME);
+		List<Task> tasks = DagEntityCreator.createGenericTasks(brokerId, List.copyOf(taskGraph.getTasks()), Constants.DEFAULT_TASK_ARRIVAL_TIME);
 		broker.submitCloudletList(tasks);
 
 		// Start the simulation.

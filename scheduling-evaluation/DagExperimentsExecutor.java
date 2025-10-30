@@ -128,15 +128,9 @@ public class DagExperimentsExecutor {
 			String taskGraphFilenamePrefix = taskGraphsDirectory + workflow + "-dag";
 			String taskGraphFilename = taskGraphFilenamePrefix + Constants.FILE_EXTENSION_TXT;
 
-			TaskGraph taskGraph = DagUtils.loadTaskGraph(taskGraphFilename);
-			if (taskGraph == null) {
-				Log.printLine(workflow + " -> Cannot load task graph " + taskGraphFilename);
-				continue;
-			}
-
-			TaskSubgraphGenerator.generateTaskSubgraphs(TaskSubgraphGeneratorType.TASK_LEVEL_GENERATOR, taskGraph, taskSubgraphCount,
+			TaskSubgraphGenerator.generateTaskSubgraphs(TaskSubgraphGeneratorType.TASK_LEVEL_GENERATOR, taskGraphFilename, taskSubgraphCount,
 					taskGraphFilenamePrefix + "-taskgen");
-			TaskSubgraphGenerator.generateTaskSubgraphs(TaskSubgraphGeneratorType.TASK_SUBGRAPH_LEVEL_GENERATOR, taskGraph, taskSubgraphCount,
+			TaskSubgraphGenerator.generateTaskSubgraphs(TaskSubgraphGeneratorType.TASK_SUBGRAPH_LEVEL_GENERATOR, taskGraphFilename, taskSubgraphCount,
 					taskGraphFilenamePrefix + "-tasksubgraphgen");
 		}
 	}
@@ -161,7 +155,7 @@ public class DagExperimentsExecutor {
 
 	private static void scheduleWorkflows(List<String> workflows, WorkflowType workflowType, String dagMetricsFilename,
 											int taskSubgraphCountMin, int taskSubgraphCountMax, int executionCount) {
-		String dagMetricsCsvHeader = "workflow,scheduling_mode,scheduling_algorithm,execution_count,task_count,task_subgraph_count,resource_count,"
+		String dagMetricsCsvHeader = "workflow,scheduling_mode,scheduling_algorithm,task_count,task_subgraph_count,resource_count,"
 										+ "makespan,utility,utility_time_10,utility_time_20,utility_time_30,utility_time_40,utility_time_50,utility_time_60,"
 										+ "utility_time_70,utility_time_75,utility_time_80,utility_time_85,utility_time_90,utility_time_95,scheduling_time";
 
@@ -232,6 +226,10 @@ public class DagExperimentsExecutor {
 		String taskGraphFilename = taskGraphsDirectory + workflow + "-dag" + Constants.FILE_EXTENSION_TXT;
 
 		for (DagBrokerType dagBrokerType : DagBrokerType.values()) {
+			if (dagBrokerType == DagBrokerType.EDGE_CLOUD_QL_HEFT_BROKER || dagBrokerType == DagBrokerType.EDGE_CLOUD_QL_2HD_BROKER) {
+				continue;
+			}
+
 			Map<DagMetricType, Double> dagMetrics = DagSimulation.executeSchedulingAlgorithm(dagBrokerType, schedulingMode, taskGraphFilename, executionCount, false);
 
 			Double makespan = Constants.INVALID_RESULT_DOUBLE;
@@ -268,7 +266,6 @@ public class DagExperimentsExecutor {
 			}
 
 			String dagMetricsCsvRow = workflow + "," + schedulingModeDescription + "," + dagBrokerType + ","
-										+ executionCount + ","
 										+ DagUtils.getTaskCount() + "," + DagUtils.getTaskSubgraphCount() + ","
 										+ Constants.RESOURCE_COUNT + ","
 										+ dft.format(makespan) + ","
@@ -300,8 +297,8 @@ public class DagExperimentsExecutor {
 		WorkflowType workflowType = WorkflowType.EPIGENOMICS;
 		List<String> workflows = getWorkflows(workflowType);
 		String dagMetricsFilename = getDagMetricsFilename(workflowType);
-		int taskSchedulingExecutionCount = 10;
-		int taskSubgraphCountMin = 5;
+		int taskSchedulingExecutionCount = 1;
+		int taskSubgraphCountMin = 20;
 		int taskSubgraphCountMax = 20;
 		// Command-line parameters.
 		if (args.length == 6) {

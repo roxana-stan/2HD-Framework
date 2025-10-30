@@ -15,8 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.PatternSyntaxException;
 
-import javafx.util.Pair;
-
 import org.cloudbus.cloudsim.DatacenterBroker;
 import org.cloudbus.cloudsim.Log;
 import org.json.simple.JSONArray;
@@ -24,14 +22,20 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
+import dag_scheduling_algorithms.CpopEdgeCloudDatacenterBroker;
 import dag_scheduling_algorithms.HeftEdgeCloudDatacenterBroker;
+import dag_scheduling_algorithms.PetsEdgeCloudDatacenterBroker;
+import dag_scheduling_algorithms.PredeterminedScheduleEdgeCloudDatacenterBroker;
 import dag_scheduling_algorithms.RandHeftEdgeCloudDatacenterBroker;
 import dag_scheduling_algorithms.RandUtilityEdgeCloudDatacenterBroker;
 import dag_scheduling_algorithms.UtilityEdgeCloudDatacenterBroker;
-import dag_scheduling_algorithms.dynamic.DynamicHeftDatacenterBroker;
-import dag_scheduling_algorithms.dynamic.DynamicRandHeftDatacenterBroker;
-import dag_scheduling_algorithms.dynamic.DynamicRandUtilityDatacenterBroker;
-import dag_scheduling_algorithms.dynamic.DynamicUtilityDatacenterBroker;
+import dag_scheduling_algorithms.dynamic.DynamicCpopEdgeCloudDatacenterBroker;
+import dag_scheduling_algorithms.dynamic.DynamicHeftEdgeCloudDatacenterBroker;
+import dag_scheduling_algorithms.dynamic.DynamicPetsEdgeCloudDatacenterBroker;
+import dag_scheduling_algorithms.dynamic.DynamicPredeterminedScheduleEdgeCloudDatacenterBroker;
+import dag_scheduling_algorithms.dynamic.DynamicRandHeftEdgeCloudDatacenterBroker;
+import dag_scheduling_algorithms.dynamic.DynamicRandUtilityEdgeCloudDatacenterBroker;
+import dag_scheduling_algorithms.dynamic.DynamicUtilityEdgeCloudDatacenterBroker;
 import scheduling_evaluation.Types.DagBrokerType;
 import scheduling_evaluation.Types.ResourceType;
 import scheduling_evaluation.Types.SchedulingMode;
@@ -83,12 +87,28 @@ public class DagEntityCreator {
 				broker = new RandHeftEdgeCloudDatacenterBroker(brokerName, taskGraph);
 				break;
 			}
-			case EDGE_CLOUD_UTILITY_BROKER: {
-				broker = new UtilityEdgeCloudDatacenterBroker(brokerName, taskGraph);
+			case EDGE_CLOUD_QL_HEFT_BROKER: {
+				broker = new PredeterminedScheduleEdgeCloudDatacenterBroker(brokerName, taskGraph, taskGraph.getQlHeftSchedule());
 				break;
 			}
-			case EDGE_CLOUD_RAND_UTILITY_BROKER: {
-				broker = new RandUtilityEdgeCloudDatacenterBroker(brokerName, taskGraph);
+			case EDGE_CLOUD_CPOP_BROKER: {
+				broker = new CpopEdgeCloudDatacenterBroker(brokerName, taskGraph);
+				break;
+			}
+			case EDGE_CLOUD_PETS_BROKER: {
+				broker = new PetsEdgeCloudDatacenterBroker(brokerName, taskGraph);
+				break;
+			}
+			case EDGE_CLOUD_2HD_BROKER: {
+				broker = new UtilityEdgeCloudDatacenterBroker(brokerName, taskGraph, /* hybrid= */ false);
+				break;
+			}
+			case EDGE_CLOUD_RAND_2HD_BROKER: {
+				broker = new RandUtilityEdgeCloudDatacenterBroker(brokerName, taskGraph, /* hybrid= */ false);
+				break;
+			}
+			case EDGE_CLOUD_QL_2HD_BROKER: {
+				broker = new PredeterminedScheduleEdgeCloudDatacenterBroker(brokerName, taskGraph, taskGraph.getQl2hdSchedule());
 				break;
 			}
 			}
@@ -106,19 +126,35 @@ public class DagEntityCreator {
 		try {
 			switch (type) {
 			case EDGE_CLOUD_HEFT_BROKER: {
-				broker = new DynamicHeftDatacenterBroker(brokerName, taskGraph);
+				broker = new DynamicHeftEdgeCloudDatacenterBroker(brokerName, taskGraph);
 				break;
 			}
 			case EDGE_CLOUD_RAND_HEFT_BROKER: {
-				broker = new DynamicRandHeftDatacenterBroker(brokerName, taskGraph);
+				broker = new DynamicRandHeftEdgeCloudDatacenterBroker(brokerName, taskGraph);
 				break;
 			}
-			case EDGE_CLOUD_UTILITY_BROKER: {
-				broker = new DynamicUtilityDatacenterBroker(brokerName, taskGraph);
+			case EDGE_CLOUD_QL_HEFT_BROKER: {
+				broker = new DynamicPredeterminedScheduleEdgeCloudDatacenterBroker(brokerName, taskGraph, taskGraph.getQlHeftSchedule());
 				break;
 			}
-			case EDGE_CLOUD_RAND_UTILITY_BROKER: {
-				broker = new DynamicRandUtilityDatacenterBroker(brokerName, taskGraph);
+			case EDGE_CLOUD_CPOP_BROKER: {
+				broker = new DynamicCpopEdgeCloudDatacenterBroker(brokerName, taskGraph);
+				break;
+			}
+			case EDGE_CLOUD_PETS_BROKER: {
+				broker = new DynamicPetsEdgeCloudDatacenterBroker(brokerName, taskGraph);
+				break;
+			}
+			case EDGE_CLOUD_2HD_BROKER: {
+				broker = new DynamicUtilityEdgeCloudDatacenterBroker(brokerName, taskGraph, /* hybrid= */ false);
+				break;
+			}
+			case EDGE_CLOUD_RAND_2HD_BROKER: {
+				broker = new DynamicRandUtilityEdgeCloudDatacenterBroker(brokerName, taskGraph, /* hybrid= */ false);
+				break;
+			}
+			case EDGE_CLOUD_QL_2HD_BROKER: {
+				broker = new DynamicPredeterminedScheduleEdgeCloudDatacenterBroker(brokerName, taskGraph, taskGraph.getQl2hdSchedule());
 				break;
 			}
 			}
@@ -410,9 +446,8 @@ public class DagEntityCreator {
 
 				Integer fromTask = taskInfoMappings.get(dependentTasksIds.getKey());
 				Integer toTask = taskInfoMappings.get(dependentTasksIds.getValue());
-				Pair<Integer, Integer> dependentTasks = new Pair<Integer, Integer>(fromTask, toTask);
 
-				taskGraph.addDependency(dependentTasks, dataDependency);
+				taskGraph.addDependency(fromTask, toTask, dataDependency);
 
 				bw.write(fromTask + " " + toTask + " " + dataDependency);
 				bw.newLine();
@@ -454,12 +489,12 @@ public class DagEntityCreator {
 	/**
 	 * Creates a list of DAG generic tasks.
 	 * @param userId User or broker ID.
-	 * @param taskId ID of the first task to be created.
-	 * @param taskCount Number of tasks to be created.
+	 * @param taskIds IDs of the tasks to be created.
 	 * @param taskArrivalTime Tasks' arrival time, assuming that all tasks arrive at the same time.
 	 * @return The created list of generic tasks.
 	 */
-	public static List<Task> createGenericTasks(int userId, int taskId, int taskCount, double taskArrivalTime) {
+	public static List<Task> createGenericTasks(int userId, List<Integer> taskIds, double taskArrivalTime) {
+		int taskCount = taskIds.size();
 		// The actual values are set accordingly at scheduling time given the DAG configuration.
 		double[] taskLengths = new double[taskCount];
 		Arrays.fill(taskLengths, 0.0);
@@ -470,7 +505,7 @@ public class DagEntityCreator {
 		double[] taskArrivalTimes = new double[taskCount];
 		Arrays.fill(taskArrivalTimes, taskArrivalTime);
 
-		List<Task> tasks = EntityCreator.createGenericTasks(userId, taskId, taskCount,
+		List<Task> tasks = EntityCreator.createGenericTasks(userId, taskCount, taskIds,
 															taskLengths, taskFileSizes, taskOutputSizes, taskArrivalTimes);
 		return tasks;
 	}

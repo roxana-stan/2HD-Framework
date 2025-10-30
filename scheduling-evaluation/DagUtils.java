@@ -8,8 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
-import javafx.util.Pair;
-
 import org.cloudbus.cloudsim.Log;
 
 import scheduling_evaluation.Types.ResourceType;
@@ -84,10 +82,9 @@ public class DagUtils {
 				int dependencyStringIdx = 0;
 				Integer fromTask = Integer.parseInt(dependencyStrings[dependencyStringIdx++]);
 				Integer toTask = Integer.parseInt(dependencyStrings[dependencyStringIdx++]);
-				Pair<Integer, Integer> dependentTasks = new Pair<Integer, Integer>(fromTask, toTask);
 				Double dataDependency = Double.parseDouble(dependencyStrings[dependencyStringIdx++]);
 
-				taskGraph.addDependency(dependentTasks, dataDependency);
+				taskGraph.addDependency(fromTask, toTask, dataDependency);
 			}
 
 			scanner.close();
@@ -129,14 +126,14 @@ public class DagUtils {
 				int dependencyStringIdx = 0;
 				Integer fromTask = Integer.parseInt(dependencyStrings[dependencyStringIdx++]);
 				Integer toTask = Integer.parseInt(dependencyStrings[dependencyStringIdx++]);
-				Pair<Integer, Integer> dependentTasks = new Pair<Integer, Integer>(fromTask, toTask);
 				Double dataDependency = Double.parseDouble(dependencyStrings[dependencyStringIdx++]);
 
-				taskGraph.addDependency(dependentTasks, dataDependency);
+				taskGraph.addDependency(fromTask, toTask, dataDependency);
 			}
 
-			Integer exitTask = Integer.parseInt(scanner.nextLine());
-			taskGraph.addExitTask(exitTask);
+			Integer taskSubgraphExitTask = Integer.parseInt(scanner.nextLine());
+			Integer taskGraphExitTask = taskGraph.getExitTasks().get(0);
+			taskGraph.addDependency(taskSubgraphExitTask, taskGraphExitTask, 0.0);
 
 			scanner.close();
 		} catch (FileNotFoundException e) {

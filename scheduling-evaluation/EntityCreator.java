@@ -94,26 +94,23 @@ public class EntityCreator {
 	/**
 	 * Creates a list of tasks of generic type.
 	 * @param userId User or broker ID.
-	 * @param taskId ID of the first task to be created.
 	 * @param taskCount Number of tasks to be created.
+	 * @param taskIds IDs of the tasks to be created.
 	 * @param taskLengths Array of tasks' lengths.
 	 * @param taskFileSizes Array of tasks' input file sizes.
 	 * @param taskOutputSizes Array of tasks' output file sizes.
 	 * @param taskArrivalTimes Array of tasks' arrival times.
 	 * @return The created task list.
 	 */
-	public static List<Task> createGenericTasks(int userId, int taskId, int taskCount, double[] taskLengths,
+	public static List<Task> createGenericTasks(int userId, int taskCount, List<Integer> taskIds, double[] taskLengths,
 												double[] taskFileSizes, double[] taskOutputSizes, double[] taskArrivalTimes) {
 		LinkedList<Task> taskList = new LinkedList<Task>();
 
 		// Create the tasks.
 		for (int taskIdx = 0; taskIdx < taskCount; ++taskIdx) {
-			Task task = createGenericTask(userId, taskId++, taskLengths[taskIdx], taskFileSizes[taskIdx], taskOutputSizes[taskIdx], taskArrivalTimes[taskIdx]);
+			Task task = createGenericTask(userId, taskIds.get(taskIdx), taskLengths[taskIdx], taskFileSizes[taskIdx], taskOutputSizes[taskIdx], taskArrivalTimes[taskIdx]);
 			taskList.add(task);
 		}
-
-		// Sort the tasks based on their arrival times.
-		sortTasksByArrivalTime(taskList);
 
 		return taskList;
 	}

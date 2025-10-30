@@ -8,8 +8,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javafx.util.Pair;
-
 import org.cloudbus.cloudsim.Cloudlet;
 import org.cloudbus.cloudsim.Log;
 
@@ -103,7 +101,11 @@ public class DagSchedulingMetrics {
 			}
 
 			Integer task = cloudlet.getCloudletId();
-			double utility = taskGraph.computeTaskOutputData(task) * (makespan - SchedulingMetrics.cloudletCompletionTime(cloudlet));
+			if (taskGraph.isEntryTask(task)) {
+				// The pseudo-entry task doesn't have actual output data.
+				continue;
+			}
+			double utility = taskGraph.getTaskOutputData(task) * (makespan - SchedulingMetrics.cloudletCompletionTime(cloudlet));
 
 			utilitySum += utility;
 		}
@@ -121,8 +123,12 @@ public class DagSchedulingMetrics {
 			}
 
 			Integer task = cloudlet.getCloudletId();
+			if (taskGraph.isEntryTask(task)) {
+				// The pseudo-entry task doesn't have actual output data.
+				continue;
+			}
 			double taskCompletionTime = SchedulingMetrics.cloudletCompletionTime(cloudlet);
-			double taskOutputData = taskGraph.computeTaskOutputData(task);
+			double taskOutputData = taskGraph.getTaskOutputData(task);
 
 			totalOutputData += taskOutputData;
 			taskUtilityInfo.add(new Pair<Double, Double>(taskCompletionTime, taskOutputData));

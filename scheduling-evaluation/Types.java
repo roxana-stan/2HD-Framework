@@ -54,8 +54,12 @@ public class Types {
 	public enum DagBrokerType {
 		EDGE_CLOUD_HEFT_BROKER,
 		EDGE_CLOUD_RAND_HEFT_BROKER,
-		EDGE_CLOUD_UTILITY_BROKER,
-		EDGE_CLOUD_RAND_UTILITY_BROKER;
+		EDGE_CLOUD_QL_HEFT_BROKER,
+		EDGE_CLOUD_CPOP_BROKER,
+		EDGE_CLOUD_PETS_BROKER,
+		EDGE_CLOUD_2HD_BROKER,
+		EDGE_CLOUD_RAND_2HD_BROKER,
+		EDGE_CLOUD_QL_2HD_BROKER;
 	}
 
 	public enum WorkflowType {
@@ -107,13 +111,25 @@ public class Types {
 			return "HEFT-EdgeCloud-Broker-";
 		}
 		case EDGE_CLOUD_RAND_HEFT_BROKER: {
-			return "RandHEFT-EdgeCloud-Broker-";
+			return "Rand-HEFT-EdgeCloud-Broker-";
 		}
-		case EDGE_CLOUD_UTILITY_BROKER: {
-			return "Utility-EdgeCloud-Broker-";
+		case EDGE_CLOUD_QL_HEFT_BROKER: {
+			return "QL-HEFT-EdgeCloud-Broker-";
 		}
-		case EDGE_CLOUD_RAND_UTILITY_BROKER: {
-			return "RandUtility-EdgeCloud-Broker-";
+		case EDGE_CLOUD_CPOP_BROKER: {
+			return "CPOP-EdgeCloud-Broker-";
+		}
+		case EDGE_CLOUD_PETS_BROKER: {
+			return "PETS-EdgeCloud-Broker-";
+		}
+		case EDGE_CLOUD_2HD_BROKER: {
+			return "2HD-EdgeCloud-Broker-";
+		}
+		case EDGE_CLOUD_RAND_2HD_BROKER: {
+			return "Rand-2HD-EdgeCloud-Broker-";
+		}
+		case EDGE_CLOUD_QL_2HD_BROKER: {
+			return "QL-2HD-EdgeCloud-Broker-";
 		}
 		}
 		return "";

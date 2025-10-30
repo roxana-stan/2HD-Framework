@@ -8,8 +8,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import javafx.util.Pair;
-
 import org.cloudbus.cloudsim.Log;
 
 import scheduling_evaluation.Types.ResourceType;
@@ -19,17 +17,51 @@ public class TaskGraph {
 	private List<Integer> entryTasks = null;
 	private List<Integer> exitTasks = null;
 
-	private Map<Integer, List<Pair<Integer, Double>>> graph = null;
-	private Map<Integer, List<Pair<Integer, Double>>> reverseGraph = null;
+	private Map<Integer, Map<Integer, Double>> graph = null;
+	private Map<Integer, Map<Integer, Double>> reverseGraph = null;
 
 	private Map<Integer, ResourceType> resources = null;
 	private Map<Integer, Double> resourcesAvailability = null;
 
 	private Map<Integer, Map<ResourceType, Double>> computationCosts = null;
+
+	private Map<Integer, Double> taskInputData = null;
+	private Map<Integer, Double> taskOutputData = null;
 	private Map<Integer, Double> averageComputationCosts = null;
+	private Map<Integer, Map<Integer, Double>> averageCommunicationCosts = null;
+
+	private LinkedList<Integer> qlHeftSchedule = null;
+	private LinkedList<Integer> ql2hdSchedule = null;
 
 	public TaskGraph() {
+		this.taskInputData = new HashMap<Integer, Double>();
+		this.taskOutputData = new HashMap<Integer, Double>();
 		this.averageComputationCosts = new HashMap<Integer, Double>();
+		this.averageCommunicationCosts = new HashMap<Integer, Map<Integer, Double>>();
+	}
+
+	public void clearAndPrecomputeCosts() {
+		// Clear costs.
+		this.taskInputData.clear();
+		this.taskOutputData.clear();
+		this.averageComputationCosts.clear();
+		this.averageCommunicationCosts.clear();
+
+		// Precompute costs.
+		for (Integer task : this.graph.keySet()) {
+			// Input and output data.
+			this.taskInputData.put(task, computeTaskInputData(task));
+			this.taskOutputData.put(task, computeTaskOutputData(task));
+		}
+		for (Integer task : this.graph.keySet()) {
+			// Computation and communication costs.
+			this.averageComputationCosts.put(task, computeAverageComputationCost(task));
+			this.averageCommunicationCosts.put(task, new HashMap<Integer, Double>());
+			Map<Integer, Double> succTasksInfo = getSuccessorTasksInfo(task);
+			for (Integer succTask : succTasksInfo.keySet()) {
+				this.averageCommunicationCosts.get(task).put(succTask, computeAverageCommunicationCost(task, succTask));
+			}
+		}
 	}
 
 	public List<Integer> getEntryTasks() {
@@ -118,9 +150,8 @@ public class TaskGraph {
 	public void addTasks(List<Integer> tasks) {
 		if (this.graph == null) {
 			int taskCount = tasks.size();
-
-			this.graph = new HashMap<Integer, List<Pair<Integer, Double>>>(taskCount);
-			this.reverseGraph = new HashMap<Integer, List<Pair<Integer, Double>>>(taskCount);
+			this.graph = new HashMap<Integer, Map<Integer, Double>>(taskCount);
+			this.reverseGraph = new HashMap<Integer, Map<Integer, Double>>(taskCount);
 		}
 
 		for (Integer task : tasks) {
@@ -130,8 +161,8 @@ public class TaskGraph {
 
 	public void addTask(Integer task) {
 		if (this.graph == null) {
-			this.graph = new HashMap<Integer, List<Pair<Integer, Double>>>();
-			this.reverseGraph = new HashMap<Integer, List<Pair<Integer, Double>>>();
+			this.graph = new HashMap<Integer, Map<Integer, Double>>();
+			this.reverseGraph = new HashMap<Integer, Map<Integer, Double>>();
 		}
 
 		if (this.graph.containsKey(task)) {
@@ -139,8 +170,8 @@ public class TaskGraph {
 			return;
 		}
 
-		this.graph.put(task, new LinkedList<Pair<Integer, Double>>());
-		this.reverseGraph.put(task, new LinkedList<Pair<Integer, Double>>());
+		this.graph.put(task, new HashMap<Integer, Double>());
+		this.reverseGraph.put(task, new HashMap<Integer, Double>());
 	}
 
 	public void addDependencies(Map<Pair<Integer, Integer>, Double> dependencies) {
@@ -148,16 +179,16 @@ public class TaskGraph {
 			Pair<Integer, Integer> dependentTasks = dependencyEntry.getKey();
 			Double dataDependency = dependencyEntry.getValue();
 
-			addDependency(dependentTasks, dataDependency);
+			Integer fromTask = dependentTasks.getKey();
+			Integer toTask = dependentTasks.getValue();
+
+			addDependency(fromTask, toTask, dataDependency);
 		}
 	}
 
-	public void addDependency(Pair<Integer, Integer> dependentTasks, Double dataDependency) {
-		Integer fromTask = dependentTasks.getKey();
-		Integer toTask = dependentTasks.getValue();
-
-		this.graph.get(fromTask).add(new Pair<Integer, Double>(toTask, dataDependency));
-		this.reverseGraph.get(toTask).add(new Pair<Integer, Double>(fromTask, dataDependency));
+	public void addDependency(Integer fromTask, Integer toTask, Double dataDependency) {
+		this.graph.get(fromTask).put(toTask, dataDependency);
+		this.reverseGraph.get(toTask).put(fromTask, dataDependency);
 	}
 
 	public void addComputationCosts(Map<Integer, Map<ResourceType, Double>> computationCosts) {
@@ -190,8 +221,6 @@ public class TaskGraph {
 
 		// Add the task computation costs.
 		this.computationCosts.put(task, resourceComputationCosts);
-		// Also add the average task computation cost.
-		this.averageComputationCosts.put(task, computeAverageComputationCost(task));
 	}
 
 	public int getTaskCount() {
@@ -202,27 +231,17 @@ public class TaskGraph {
 		return this.resources.size();
 	}
 
-	public List<Pair<Integer, Double>> getSuccessorTasksInfo(Integer task) {
+	public Map<Integer, Double> getSuccessorTasksInfo(Integer task) {
 		return this.graph.get(task);
 	}
 
-	public List<Pair<Integer, Double>> getPredecessorTasksInfo(Integer task) {
+	public Map<Integer, Double> getPredecessorTasksInfo(Integer task) {
 		return this.reverseGraph.get(task);
 	}
 
-	public double getDataDependency(Pair<Integer, Integer> dependency) {
-		Integer fromTask = dependency.getKey();
-		Integer toTask = dependency.getValue();
-
-		List<Pair<Integer, Double>> succTasksInfo = getSuccessorTasksInfo(fromTask);
-		for (Pair<Integer, Double> succTaskInfo : succTasksInfo) {
-			Integer succTask = succTaskInfo.getKey();
-			if (Objects.equals(succTask, toTask)) {
-				Double dataDependency = succTaskInfo.getValue();
-				return dataDependency;
-			}
-		}
-		return Constants.INVALID_RESULT_DOUBLE;
+	public double getDataDependency(Integer fromTask, Integer toTask) {
+		Map<Integer, Double> succTasksInfo = getSuccessorTasksInfo(fromTask);
+		return succTasksInfo.getOrDefault(toTask, Constants.INVALID_RESULT_DOUBLE);
 	}
 
 	public void printTaskGraph() {
@@ -241,24 +260,22 @@ public class TaskGraph {
 			Log.printLine("Task " + task + taskInfo
 							+ " --- " + dft.format(getAverageComputationCost(task)) + " s (avg computation) " + resourceComputationCosts.toString());
 
-			Log.printLine("  - Input: " + dft.format(computeTaskInputData(task)) + " MB (data)");
-			List<Pair<Integer, Double>> predTasksInfo = getPredecessorTasksInfo(task);
-			for (Pair<Integer, Double> predTaskInfo : predTasksInfo) {
+			Log.printLine("  - Input: " + dft.format(getTaskInputData(task)) + " MB (data)");
+			Map<Integer, Double> predTasksInfo = getPredecessorTasksInfo(task);
+			for (Map.Entry<Integer, Double> predTaskInfo : predTasksInfo.entrySet()) {
 				Integer predTask = predTaskInfo.getKey();
 				Double dataDependency = predTaskInfo.getValue();
-				Pair<Integer, Integer> tasksDependency = new Pair<Integer, Integer>(predTask, task);
 				Log.printLine("    * Dependency: Task " + predTask + " -> Task " + task
-								+ " --- " + dft.format(dataDependency) + " MB (data) | " + dft.format(getAverageCommunicationCost(tasksDependency)) + " s (avg communication)");
+								+ " --- " + dft.format(dataDependency) + " MB (data) | " + dft.format(getAverageCommunicationCost(predTask, task)) + " s (avg communication)");
 			}
 
-			Log.printLine("  - Output: " + dft.format(computeTaskOutputData(task)) + " MB (data)");
-			List<Pair<Integer, Double>> succTasksInfo = getSuccessorTasksInfo(task);
-			for (Pair<Integer, Double> succTaskInfo : succTasksInfo) {
+			Log.printLine("  - Output: " + dft.format(getTaskOutputData(task)) + " MB (data)");
+			Map<Integer, Double> succTasksInfo = getSuccessorTasksInfo(task);
+			for (Map.Entry<Integer, Double> succTaskInfo : succTasksInfo.entrySet()) {
 				Integer succTask = succTaskInfo.getKey();
 				Double dataDependency = succTaskInfo.getValue();
-				Pair<Integer, Integer> tasksDependency = new Pair<Integer, Integer>(task, succTask);
 				Log.printLine("    * Dependency: Task " + task + " -> Task " + succTask
-								+ " --- " + dft.format(dataDependency) + " MB (data) | " + dft.format(getAverageCommunicationCost(tasksDependency)) + " s (avg communication)");
+								+ " --- " + dft.format(dataDependency) + " MB (data) | " + dft.format(getAverageCommunicationCost(task, succTask)) + " s (avg communication)");
 			}
 
 			Log.printLine();
@@ -281,10 +298,8 @@ public class TaskGraph {
 		Double minDataDependency = Double.MAX_VALUE;
 		Double maxDataDependency = Double.MIN_VALUE;
 
-		for (List<Pair<Integer, Double>> dependentTasksInfo : this.graph.values()) {
-			for (Pair<Integer, Double> dependentTaskInfo : dependentTasksInfo) {
-				Double dataDependency = dependentTaskInfo.getValue();
-
+		for (Map<Integer, Double> dependentTasksInfo : this.graph.values()) {
+			for (Double dataDependency : dependentTasksInfo.values()) {
 				minDataDependency = Math.min(minDataDependency, dataDependency);
 				maxDataDependency = Math.max(maxDataDependency, dataDependency);
 			}
@@ -293,26 +308,36 @@ public class TaskGraph {
 		return new Pair<Double, Double>(minDataDependency, maxDataDependency);
 	}
 
-	public Double computeTaskInputData(Integer task) {
+	public Double getTaskInputData(Integer task) {
+		if (!this.taskInputData.containsKey(task)) {
+			this.taskInputData.put(task, computeTaskInputData(task));
+		}
+		return this.taskInputData.get(task);
+	}
+
+	private Double computeTaskInputData(Integer task) {
 		Double inputData = 0.0;
 
-		List<Pair<Integer, Double>> predTasksInfo = getPredecessorTasksInfo(task);
-		for (Pair<Integer, Double> predTaskInfo : predTasksInfo) {
-			Double dataDependency = predTaskInfo.getValue();
-
+		Map<Integer, Double> predTasksInfo = getPredecessorTasksInfo(task);
+		for (Double dataDependency : predTasksInfo.values()) {
 			inputData += dataDependency;
 		}
 
 		return inputData;
 	}
 
-	public Double computeTaskOutputData(Integer task) {
+	public Double getTaskOutputData(Integer task) {
+		if (!this.taskOutputData.containsKey(task)) {
+			this.taskOutputData.put(task, computeTaskOutputData(task));
+		}
+		return this.taskOutputData.get(task);
+	}
+
+	private Double computeTaskOutputData(Integer task) {
 		Double outputData = 0.0;
 
-		List<Pair<Integer, Double>> succTasksInfo = getSuccessorTasksInfo(task);
-		for (Pair<Integer, Double> succTaskInfo : succTasksInfo) {
-			Double dataDependency = succTaskInfo.getValue();
-
+		Map<Integer, Double> succTasksInfo = getSuccessorTasksInfo(task);
+		for (Double dataDependency : succTasksInfo.values()) {
 			outputData += dataDependency;
 		}
 
@@ -320,16 +345,13 @@ public class TaskGraph {
 	}
 
 	public Double getAverageComputationCost(Integer task) {
-		if (this.averageComputationCosts.containsKey(task)) {
-			return this.averageComputationCosts.get(task);
+		if (!this.averageComputationCosts.containsKey(task)) {
+			this.averageComputationCosts.put(task, computeAverageComputationCost(task));
 		}
-
-		Double averageComputationCost = computeAverageComputationCost(task);
-		this.averageComputationCosts.put(task, averageComputationCost);
-		return averageComputationCost;
+		return this.averageComputationCosts.get(task);
 	}
 
-	public Double computeAverageComputationCost(Integer task) {
+	private Double computeAverageComputationCost(Integer task) {
 		Double computationCostsSum = 0.0;
 		int costCount = 0;
 
@@ -342,7 +364,7 @@ public class TaskGraph {
 				// Resource not available yet.
 				continue;
 			}
-			if (!TaskUtils.canExecuteTaskOnResourceWithLimitedMemoryCapacity(computeTaskInputData(task), resourceType)) {
+			if (!TaskUtils.canExecuteTaskOnResourceWithLimitedMemoryCapacity(getTaskInputData(task), resourceType)) {
 				// Resource with limited memory capacity.
 				continue;
 			}
@@ -360,12 +382,19 @@ public class TaskGraph {
 		return this.computationCosts.get(task).get(resourceType);
 	}
 
-	public Double getAverageCommunicationCost(Pair<Integer, Integer> tasksDependency) {
+	public Double getAverageCommunicationCost(Integer fromTask, Integer toTask) {
+		if (!this.averageCommunicationCosts.containsKey(fromTask)) {
+			this.averageCommunicationCosts.put(fromTask, new HashMap<Integer, Double>());
+		}
+		if (!this.averageCommunicationCosts.get(fromTask).containsKey(toTask)) {
+			this.averageCommunicationCosts.get(fromTask).put(toTask, computeAverageCommunicationCost(fromTask, toTask));
+		}
+		return this.averageCommunicationCosts.get(fromTask).get(toTask);
+	}
+
+	private Double computeAverageCommunicationCost(Integer fromTask, Integer toTask) {
 		Double communicationCostsSum = 0.0;
 		int costCount = 0;
-
-		Integer fromTask = tasksDependency.getKey();
-		Integer toTask = tasksDependency.getValue();
 
 		for (Map.Entry<Integer, ResourceType> resourceEntry1 : this.resources.entrySet()) {
 			Integer resource1 = resourceEntry1.getKey();
@@ -376,7 +405,7 @@ public class TaskGraph {
 				// Resource not available yet.
 				continue;
 			}
-			if (!TaskUtils.canExecuteTaskOnResourceWithLimitedMemoryCapacity(computeTaskInputData(fromTask), resourceType1)) {
+			if (!TaskUtils.canExecuteTaskOnResourceWithLimitedMemoryCapacity(getTaskInputData(fromTask), resourceType1)) {
 				// Resource with limited memory capacity.
 				continue;
 			}
@@ -390,12 +419,12 @@ public class TaskGraph {
 					// Resource not available yet.
 					continue;
 				}
-				if (!TaskUtils.canExecuteTaskOnResourceWithLimitedMemoryCapacity(computeTaskInputData(toTask), resourceType2)) {
+				if (!TaskUtils.canExecuteTaskOnResourceWithLimitedMemoryCapacity(getTaskInputData(toTask), resourceType2)) {
 					// Resource with limited memory capacity.
 					continue;
 				}
 
-				communicationCostsSum += getCommunicationCost(tasksDependency, new Pair<Integer, Integer>(resource1, resource2));
+				communicationCostsSum += getCommunicationCost(fromTask, toTask, resource1, resource2);
 				++costCount;
 			}
 		}
@@ -403,9 +432,7 @@ public class TaskGraph {
 		return communicationCostsSum / costCount;
 	}
 
-	public Double getCommunicationCost(Pair<Integer, Integer> tasksDependency, Pair<Integer, Integer> resources) {
-		Integer fromResource = resources.getKey();
-		Integer toResource = resources.getValue();
+	public Double getCommunicationCost(Integer fromTask, Integer toTask, Integer fromResource, Integer toResource) {
 		ResourceType fromResourceType = this.resources.get(fromResource);
 		ResourceType toResourceType = this.resources.get(toResource);
 		boolean fromEdgeResource = ResourceUtils.isEdgeResource(fromResourceType);
@@ -413,9 +440,7 @@ public class TaskGraph {
 		boolean toEdgeResource = ResourceUtils.isEdgeResource(toResourceType);
 		boolean toCloudResource = ResourceUtils.isCloudResource(toResourceType);
 
-		Integer fromTask = tasksDependency.getKey();
-		Integer toTask = tasksDependency.getValue();
-		Double dataDependency = getDataDependency(tasksDependency);
+		Double dataDependency = getDataDependency(fromTask, toTask);
 
 		// Pseudo entry / exit tasks.
 		if (isEntryTask(fromTask)) {
@@ -450,6 +475,22 @@ public class TaskGraph {
 			resourcesTransferRate = Constants.CLOUD_TO_CLOUD_TRANSFER_RATE;
 		}
 		return dataDependency / resourcesTransferRate;
+	}
+
+	public LinkedList<Integer> getQlHeftSchedule() {
+		return this.qlHeftSchedule;
+	}
+
+	public void setQlHeftSchedule(LinkedList<Integer> schedule) {
+		this.qlHeftSchedule = schedule;
+	}
+
+	public LinkedList<Integer> getQl2hdSchedule() {
+		return this.ql2hdSchedule;
+	}
+
+	public void setQl2hdSchedule(LinkedList<Integer> schedule) {
+		this.ql2hdSchedule = schedule;
 	}
 
 }

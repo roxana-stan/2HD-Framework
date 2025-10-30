@@ -20,12 +20,12 @@ public class Constants {
 	/* Resource count */
 	// Assumption: number of resources = number of physical machines (in 1 datacenter)
 	public static final int RESOURCE_TYPE_COUNT									= 3;
-	public static final int SMARTPHONE_RESOURCE_COUNT							= 15;
-	public static final int SMARTPHONE_RESOURCE_COUNT_DEFAULT_AVAILABILITY		= 5;
-	public static final int RASPBERRY_PI_RESOURCE_COUNT							= 15;
-	public static final int RASPBERRY_PI_RESOURCE_COUNT_DEFAULT_AVAILABILITY	= 5;
-	public static final int CLOUD_RESOURCE_COUNT								= 15;
-	public static final int CLOUD_RESOURCE_COUNT_DEFAULT_AVAILABILITY			= 5;
+	public static final int SMARTPHONE_RESOURCE_COUNT							= 3;
+	public static final int SMARTPHONE_RESOURCE_COUNT_DEFAULT_AVAILABILITY		= 3;
+	public static final int RASPBERRY_PI_RESOURCE_COUNT							= 3;
+	public static final int RASPBERRY_PI_RESOURCE_COUNT_DEFAULT_AVAILABILITY	= 3;
+	public static final int CLOUD_RESOURCE_COUNT								= 3;
+	public static final int CLOUD_RESOURCE_COUNT_DEFAULT_AVAILABILITY			= 3;
 	public static final int RESOURCE_COUNT										= SMARTPHONE_RESOURCE_COUNT
 																					+ RASPBERRY_PI_RESOURCE_COUNT
 																					+ CLOUD_RESOURCE_COUNT;
@@ -105,9 +105,9 @@ public class Constants {
 
 	/* Resources transfer rates */
 	public static final double CLOUD_TO_CLOUD_TRANSFER_RATE				= 1.0 * CLOUD_VM_BANDWIDTH;
-	public static final double CLOUD_TO_EDGE_TRANSFER_RATE				= 0.2 * CLOUD_VM_BANDWIDTH;
-	public static final double EDGE_TO_CLOUD_TRANSFER_RATE				= 0.15 * CLOUD_VM_BANDWIDTH;
-	public static final double EDGE_TO_EDGE_TRANSFER_RATE				= 0.5 * CLOUD_VM_BANDWIDTH;
+	public static final double CLOUD_TO_EDGE_TRANSFER_RATE				= 0.1 * CLOUD_VM_BANDWIDTH;
+	public static final double EDGE_TO_CLOUD_TRANSFER_RATE				= 0.075 * CLOUD_VM_BANDWIDTH;
+	public static final double EDGE_TO_EDGE_TRANSFER_RATE				= 0.25 * CLOUD_VM_BANDWIDTH;
 
 	/* ------------------- Task parameters ------------------- */
 	public static final double DEFAULT_TASK_ARRIVAL_TIME	= 1.0;

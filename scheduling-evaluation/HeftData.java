@@ -8,8 +8,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import javafx.util.Pair;
-
 import scheduling_evaluation.Types.ResourceType;
 
 public class HeftData {
