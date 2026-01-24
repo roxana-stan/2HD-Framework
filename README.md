@@ -17,8 +17,23 @@
 
 #### Citing 2HD framework
 
+- [2HD: Hybrid Dynamic Utility-Driven Dependency-Aware Task Scheduling in Heterogeneous Datacenters](https://doi.org/10.1109/ACCESS.2025.3643945)
 > ```
-> @article{2hd_framework,
+> @article{2hd_framework_ieee,
+>   author = {Stan, Roxana-Gabriela and Pop, Florin},
+>   title = {{2HD: Hybrid Dynamic Utility-Driven Dependency-Aware Task Scheduling in Heterogeneous Datacenters}},
+>   journal = {IEEE Access},
+>   volume = {13},
+>   year = {2025},
+>   number = {},
+>   pages = {212083-212103},
+>   doi = {10.1109/ACCESS.2025.3643945}
+> }
+> ```
+
+- [Evaluation of Task Scheduling Algorithms in Heterogeneous Computing Environments](https://doi.org/10.3390/s21175906)
+> ```
+> @article{2hd_framework_sensors,
 >   author = {Stan, Roxana-Gabriela and Băjenaru, Lidia and Negru, Cătălin and Pop, Florin},
 >   title = {{Evaluation of Task Scheduling Algorithms in Heterogeneous Computing Environments}},
 >   journal = {Sensors},
